@@ -23,7 +23,7 @@ namespace CampLantern.Combat.Weapons
         private const float k_const = 0.25f;
 
         private MeleeWeapon m_weapon;
-        private DummyMonster m_dummy;
+        private MonsterHealth m_dummy; // step-03에서 DummyMonster → MonsterHealth로 대체
         private Transform m_weaponRoot;
         private Vector3 m_bodyCenter;
         private Vector3 m_headCenter;
@@ -52,9 +52,14 @@ namespace CampLantern.Combat.Weapons
 
         private void BuildDummy()
         {
+            var monsterData = ScriptableObject.CreateInstance<MonsterData>();
+            monsterData.baseHp = 100;
+            monsterData.weakpointMultiplier = 1.5f;
+
             var root = new GameObject("MeleeTest_Dummy");
             root.transform.position = new Vector3(1000f, 0f, 1000f); // 씬 내용과 격리된 좌표
-            m_dummy = root.AddComponent<DummyMonster>();
+            m_dummy = root.AddComponent<MonsterHealth>();
+            m_dummy.Configure(monsterData);
 
             m_bodyCenter = root.transform.position + new Vector3(0f, 1f, 0f);
             m_headCenter = root.transform.position + new Vector3(0f, 2.2f, 0f);

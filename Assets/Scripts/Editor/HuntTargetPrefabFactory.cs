@@ -110,7 +110,8 @@ namespace CampLantern.EditorTools
 
         // 기존 .mat 에셋을 URP/Lit 셰이더로 제자리 교체 — WeaponPrefabFactory.UpgradeMaterialAt과 동일 취지,
         // 여기선 Emission/Occlusion 맵까지 배선(Bear_4.mat이 사용).
-        private static void UpgradeMaterialToUrp(string materialPath, string baseMapPath, string normalMapPath,
+        // internal: CombatMonsterPrefabFactory(로컬 전투 곰)가 동일 배선을 재사용한다.
+        internal static void UpgradeMaterialToUrp(string materialPath, string baseMapPath, string normalMapPath,
                                                   string emissionMapPath = null, string occlusionMapPath = null)
         {
             var mat = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
