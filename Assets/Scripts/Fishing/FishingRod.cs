@@ -4,12 +4,20 @@ using UnityEngine;
 
 namespace CampLantern.Fishing
 {
+    /// <summary>포획 보상 묶음 — 산출은 FishingFormulas 경유(§7-6 임시 고정 1, TODO(FORMULA)).</summary>
+    public struct FishReward
+    {
+        public int xp;
+        public int coin;
+    }
+
     /// <summary>
     /// 낚싯대 — 입력 진입점 + 미끼/내구도/텐션(RodData) 컨트롤러 (design/fishing-detailed).
     /// 구 버전의 타이밍 FSM(캐스팅→대기→입질)은 물고기 FSM(<see cref="Fish"/>)으로 이관됐다 —
     /// 파이팅 진행은 전부 Fish가 담당하고, 낚싯대는 얇게 유지한다.
     ///
     /// VR 입력(스윙/트리거)은 별도 어댑터(FishingRodInput, step-07)가 이 public API를 호출한다.
+    /// 획득 알림은 이벤트로만 — Wallet/Inventory 적용은 하네스 책임 (design 아키텍처 결정).
     /// </summary>
     public class FishingRod : MonoBehaviour
     {
@@ -81,8 +89,43 @@ namespace CampLantern.Fishing
             }
 
             CurrentFish = target;
+            target.Caught -= OnCurrentFishCaught; // 중복 구독 방지 (rules/scripts.md)
+            target.Caught += OnCurrentFishCaught;
             target.SetTuning(m_tuning);
             target.BeginApproach(this);
+        }
+
+        /// <summary>
+        /// 포획 성공 — 물고기 개체 + 보상(§7-6 임시 1 고정)을 알린다.
+        /// step-09에서 FishCaught로 개명 예정(LEGACY 이벤트 제거와 함께).
+        /// </summary>
+        public event Action<FishInstance, FishReward> FishCaughtDetailed;
+
+        // Fish.Caught 수신 — 보상 산출(Formulas 경유) → 이벤트 발화 → 대상 해제
+        private void OnCurrentFishCaught()
+        {
+            Fish fish = CurrentFish;
+            if (fish == null || fish.Instance == null) return;
+
+            FishInstance instance = fish.Instance;
+            var reward = new FishReward
+            {
+                xp   = FishingFormulas.RewardXp(instance),
+                coin = FishingFormulas.RewardCoin(instance),
+            };
+
+            FishCaughtDetailed?.Invoke(instance, reward);
+            RaiseLegacyFishCaught(ResolveLegacyDef(instance.Species.fishId)); // LEGACY — step-09 제거
+            ClearCurrent(fish);
+        }
+
+        // LEGACY: fishId → 기존 FishDef (아이콘·판매가 재사용). 레지스트리 없으면 null — Inventory.Add(null)은 no-op.
+        private static FishDef ResolveLegacyDef(string fishId)
+        {
+            var registry = Resources.Load<ContentRegistry>("ContentRegistry");
+            if (registry != null && registry.TryGetItem(fishId, out ItemDef def))
+                return def as FishDef;
+            return null;
         }
 
         /// <summary>챔질 — 현재 물고기에 위임. 유효 판정(Bite 윈도우)은 Fish가 한다.</summary>
@@ -105,12 +148,18 @@ namespace CampLantern.Fishing
         /// <summary>챔질 성공(Fight 진입) 시점의 내구도 차감 (§4).</summary>
         public void ConsumeDurability() => m_rod.durability = Mathf.Max(0, m_rod.durability - 1);
 
-        /// <summary>물고기가 시도 종료(실패 복귀/포획) 시 호출 — 현재 대상 해제 + 홀드 상태 정리.</summary>
+        /// <summary>물고기가 시도 종료(실패 복귀/포획) 시 호출 — 현재 대상 해제 + 구독/홀드 상태 정리.</summary>
         public void ClearCurrent(Fish fish)
         {
             if (CurrentFish != fish) return;
+            if (fish != null) fish.Caught -= OnCurrentFishCaught;
             CurrentFish = null;
             Reeling = false; // 다음 시도에 홀드가 이월되지 않게
+        }
+
+        private void OnDestroy()
+        {
+            if (CurrentFish != null) CurrentFish.Caught -= OnCurrentFishCaught;
         }
 
         // ══ LEGACY — 구 하네스(FishingGroundHarness/P0Harness) 컴파일 호환용, step-09에서 제거 ══
@@ -177,7 +226,9 @@ namespace CampLantern.Fishing
                     SetReeling(!Reeling); // 구 하네스는 홀드 입력이 없어 토글로 대체
                     break;
 
-                // Hooked → 낚아올림 매핑은 step-06에서 추가
+                case FishState.Hooked:
+                    CurrentFish.Hook(); // 낚아올림
+                    break;
             }
         }
 

@@ -319,11 +319,31 @@ namespace CampLantern.Fishing
             ResetToIdle();
         }
 
-        /// <summary>체력 0 → Hooked (§7-1). 줄 초록·낚아올림 처리는 step-06.</summary>
+        /// <summary>체력 0 → Hooked: 줄 초록색 + 낚아올림 UI 신호 (§2-4).</summary>
         private void EnterHooked()
         {
+            SetLine(LineColor.Green);
             SetState(FishState.Hooked);
             Hooked?.Invoke();
+        }
+
+        /// <summary>
+        /// 낚아올림 입력 (§2-5). Hooked에서만 유효 — Caught 전이 후 개체 제거(§3-1).
+        /// 보상 산출·이벤트 발화는 낚싯대(FishingRod)가 Caught 구독으로 처리한다.
+        /// </summary>
+        public void Hook()
+        {
+            if (State != FishState.Hooked) return;
+
+            SetState(FishState.Caught);
+            Caught?.Invoke();          // 낚싯대가 여기서 보상 계산·획득 이벤트 발화·대상 해제
+            Destroy(gameObject);       // §3-1 Caught: 개체 제거 (재스폰은 스포너 소관, step-08)
+        }
+
+        private void OnDestroy()
+        {
+            // 파이팅 중 파괴(씬 전환 등) 대비 — 낚싯대 대상 해제
+            if (m_rod != null) m_rod.ClearCurrent(this);
         }
 
         // ── 실패 처리 통일 규칙 (§3-2) ────────────────────────────────
