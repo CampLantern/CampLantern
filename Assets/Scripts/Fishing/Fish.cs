@@ -37,6 +37,9 @@ namespace CampLantern.Fishing
 
         public FishingTuning Tuning => m_tuning;
 
+        /// <summary>미끼 착수 지점 — 찌/줄 연출(FishingLineVisual)이 참조 (§2 찌 흔들림).</summary>
+        public Vector3 BaitPoint => m_baitPoint;
+
         /// <summary>상태 전이 시 발화 (UI/사운드/연출 훅).</summary>
         public event Action<FishState> StateChanged;
 

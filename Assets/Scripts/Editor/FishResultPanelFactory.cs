@@ -61,6 +61,14 @@ namespace CampLantern.EditorTools
                 SetRef(panel, "m_body", body);
                 SetRef(panel, "m_confirm", vruiButton);
 
+                // 항상 플레이어를 향하게 — 고정 배치 시 뒷면(거울상)이 보이는 문제 방지 (InventoryPanel과 동일 패턴)
+                var vrui = root.AddComponent<VRUIPanel>();
+                SetRef(vrui, "m_canvas", canvas);
+                SetRef(vrui, "m_title", title);
+                var faceSo = new SerializedObject(vrui);
+                faceSo.FindProperty("m_faceCamera").boolValue = true;
+                faceSo.ApplyModifiedPropertiesWithoutUndo();
+
                 root.transform.localScale = Vector3.one * 0.0016f;
 
                 PrefabUtility.SaveAsPrefabAsset(root, k_path);

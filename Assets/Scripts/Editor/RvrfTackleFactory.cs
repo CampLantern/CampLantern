@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System.Collections.Generic;
 using System.Linq;
+using CampLantern.Fishing;
 using UnityEditor;
 using UnityEngine;
 
@@ -25,6 +26,8 @@ namespace CampLantern.EditorTools
         private const string k_reelFbxPath   = "Assets/RealVRFishing/Models/Tackles/Reel/Reel_Float_01.fbx";
         private const string k_rodMatPath    = "Assets/RealVRFishing/Models/Tackles/Rod/Materials/Rod_Float_01.mat";
         private const string k_reelMatPath   = "Assets/RealVRFishing/Models/Tackles/Reel/Materials/Reel_Float_01.mat";
+        private const string k_bobberFbxPath = "Assets/RealVRFishing/Models/Tackles/Bobbers/Bobber0.fbx";
+        private const string k_bobberMatPath = "Assets/RealVRFishing/Models/Tackles/Bobbers/Materials/Bobber0.mat";
 
         // 빌트인 → URP 변환 대상 (태클 4종 본체 머티리얼)
         private static readonly string[] k_builtinMats =
@@ -58,9 +61,12 @@ namespace CampLantern.EditorTools
             GameObject root = PrefabUtility.LoadPrefabContents(k_rodPrefabPath);
             try
             {
-                // 기존 Visual 제거 (플레이스홀더 실린더 or 이전 스왑 결과)
+                // 재실행 안전 — 이전 스왑 산출물 전부 제거
                 foreach (Transform child in root.transform.Cast<Transform>().ToList())
-                    if (child.name == "Visual") Object.DestroyImmediate(child.gameObject);
+                    if (child.name == "Visual" || child.name == "Bobber" || child.name == "Line")
+                        Object.DestroyImmediate(child.gameObject);
+                var oldVisual = root.GetComponent<FishingLineVisual>();
+                if (oldVisual != null) Object.DestroyImmediate(oldVisual);
 
                 var visual = new GameObject("Visual");
                 visual.transform.SetParent(root.transform, false);
@@ -69,18 +75,53 @@ namespace CampLantern.EditorTools
                     k_rodLocalPos, k_rodLocalEuler, Vector3.one * k_rodScale,
                     AssetDatabase.LoadAssetAtPath<Material>(k_rodMatPath));
 
-                if (reelFbx != null && rodInst != null)
+                Transform tipAnchor = null;
+                if (rodInst != null)
                 {
-                    // 릴은 로드의 자식 — 로드 기울기를 그대로 상속. 부모 스케일(0.45)을 역보정해 실물 크기 유지.
-                    AttachModel(reelFbx, rodInst.transform, "Reel",
-                        new Vector3(0f, k_reelHeightAlongRod / k_rodScale, 0f),
-                        Vector3.zero,
-                        Vector3.one / k_rodScale,
-                        AssetDatabase.LoadAssetAtPath<Material>(k_reelMatPath));
+                    if (reelFbx != null)
+                    {
+                        // 릴은 로드의 자식 — 로드 기울기를 그대로 상속. 부모 스케일(0.45)을 역보정해 실물 크기 유지.
+                        AttachModel(reelFbx, rodInst.transform, "Reel",
+                            new Vector3(0f, k_reelHeightAlongRod / k_rodScale, 0f),
+                            Vector3.zero,
+                            Vector3.one / k_rodScale,
+                            AssetDatabase.LoadAssetAtPath<Material>(k_reelMatPath));
+                    }
+
+                    // 로드 팁 앵커 — 줄 시작점 (모델 로컬 상단 4.511m, 스케일 상속으로 실제 ~2.03m)
+                    var tip = new GameObject("TipAnchor");
+                    tip.transform.SetParent(rodInst.transform, false);
+                    tip.transform.localPosition = new Vector3(0f, 4.511f, 0f);
+                    tipAnchor = tip.transform;
                 }
 
+                // 찌 — 프리팹 루트 자식(월드 위치는 런타임에 FishingLineVisual이 지정). 초기 비표시는 소유 컴포넌트 Awake가 관리.
+                GameObject bobber = null;
+                var bobberFbx = AssetDatabase.LoadAssetAtPath<GameObject>(k_bobberFbxPath);
+                if (bobberFbx != null)
+                    bobber = AttachModel(bobberFbx, root.transform, "Bobber",
+                        Vector3.zero, Vector3.zero, Vector3.one,
+                        AssetDatabase.LoadAssetAtPath<Material>(k_bobberMatPath));
+
+                // 낚싯줄 — LineRenderer (§2 줄 색 신호의 실체). Sprites/Default는 URP에서도 버텍스 컬러 지원.
+                var lineGo = new GameObject("Line");
+                lineGo.transform.SetParent(root.transform, false);
+                var line = lineGo.AddComponent<LineRenderer>();
+                line.useWorldSpace = true;
+                line.positionCount = 2;
+                line.widthMultiplier = 0.008f;
+                line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                line.sharedMaterial = GetOrCreateLineMaterial();
+
+                // 연출 컴포넌트 배선
+                var lineVisual = root.AddComponent<CampLantern.Fishing.FishingLineVisual>();
+                SetRef(lineVisual, "m_rod", root.GetComponent<CampLantern.Fishing.FishingRod>());
+                SetRef(lineVisual, "m_tipAnchor", tipAnchor);
+                SetRef(lineVisual, "m_bobber", bobber);
+                SetRef(lineVisual, "m_line", line);
+
                 PrefabUtility.SaveAsPrefabAsset(root, k_rodPrefabPath);
-                Debug.Log($"[MakeAssets] RVRF 낚싯대 비주얼 스왑 완료: {k_rodPrefabPath}");
+                Debug.Log($"[MakeAssets] RVRF 낚싯대 비주얼 스왑 완료(로드+릴+찌+줄): {k_rodPrefabPath}");
             }
             finally { PrefabUtility.UnloadPrefabContents(root); }
             AssetDatabase.SaveAssets();
@@ -115,12 +156,35 @@ namespace CampLantern.EditorTools
             return inst;
         }
 
+        // 낚싯줄 머티리얼 — Sprites/Default(버텍스 컬러 지원, URP 호환). LineRenderer의 start/endColor로 §2 줄 색 표현.
+        private static Material GetOrCreateLineMaterial()
+        {
+            const string path = "Assets/Prefabs/Materials/Mat_FishingLine.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat != null) return mat;
+
+            mat = new Material(Shader.Find("Sprites/Default"));
+            AssetDatabase.CreateAsset(mat, path);
+            return mat;
+        }
+
+        private static void SetRef(Component comp, string field, Object value)
+        {
+            var so = new SerializedObject(comp);
+            var prop = so.FindProperty(field);
+            if (prop == null)
+                throw new System.InvalidOperationException($"[MakeAssets] 필드 없음: {comp.GetType().Name}.{field}");
+            prop.objectReferenceValue = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
         /// <summary>FBX 실측 — 렌더러 합산 바운드를 로그(배치 상수 튜닝용 진단).</summary>
         [MenuItem("Tools/Make Assets/RVRF Tackle — Log Model Bounds")]
         public static void LogModelBounds()
         {
             LogBounds(k_rodFbxPath);
             LogBounds(k_reelFbxPath);
+            LogBounds(k_bobberFbxPath);
         }
 
         private static void LogBounds(string path)

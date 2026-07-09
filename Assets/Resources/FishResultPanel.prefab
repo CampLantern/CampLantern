@@ -289,6 +289,7 @@ GameObject:
   - component: {fileID: 5975926053694790743}
   - component: {fileID: 6070830294068736716}
   - component: {fileID: 5001002764481578267}
+  - component: {fileID: 7324702096044980998}
   m_Layer: 0
   m_Name: FishResultPanel
   m_TagString: Untagged
@@ -434,6 +435,22 @@ MonoBehaviour:
   m_title: {fileID: 4435811530887857631}
   m_body: {fileID: 5562008667214745028}
   m_confirm: {fileID: 1712775846415374862}
+--- !u!114 &7324702096044980998
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6729831785174236995}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44263c3dd49301447bf9c56dbae880fb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampLantern.UI.VRUIPanel
+  m_canvas: {fileID: 8531395035010984061}
+  m_content: {fileID: 0}
+  m_title: {fileID: 4435811530887857631}
+  m_faceCamera: 1
 --- !u!1 &6829588961660463633
 GameObject:
   m_ObjectHideFlags: 0
