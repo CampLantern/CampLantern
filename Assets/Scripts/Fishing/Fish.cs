@@ -55,7 +55,11 @@ namespace CampLantern.Fishing
         private FishingRod m_rod;          // 현재 이 개체를 낚는 낚싯대 (Approach~Fight 동안만)
         private Vector3 m_homePosition;    // 원래 위치 — 실패 복귀 지점 (§3-2)
         private Vector3 m_baitPoint;       // 미끼 착수 지점 — Approach 목표
-        private float m_phaseTimer;        // 현재 상태의 남은 시간 (Bite 윈도우 등)
+        private float m_phaseTimer;        // 현재 상태의 남은 시간 (Bite 윈도우/도망 지속/체공)
+        private float m_nextEscapeIn;      // 다음 도망까지 간격 — FightNormal에서만 감소 (§7-3 기산점 = 도망 종료)
+        private bool m_lastWasShake;       // §7-5 연속 방지 — 비늘털이 직후 도망은 반드시 일반 도망
+        private bool m_swingReceived;      // 체공 중 스윙 성공 등록 — 착수 시 디버프 적용
+        private float m_debuffUntil;       // 힘 -20% 디버프 만료 시각 (Time.time 기준, §7-5)
 
         private void Awake()
         {
@@ -99,12 +103,29 @@ namespace CampLantern.Fishing
                     UpdateFightNormal();
                     break;
 
-                // FightEscape·FightShake: step-05 / Hooked(낚아올림 대기): step-06
+                case FishState.FightEscape:
+                    UpdateFightEscape();
+                    break;
+
+                case FishState.FightShake:
+                    UpdateFightShake();
+                    break;
+
+                // Hooked(낚아올림 대기): step-06
             }
         }
 
-        // 물고기 유효 힘 — §7 수식 전부가 이 값을 참조한다. step-05: 비늘털이 디버프(×0.8) 반영 예정.
-        private float EffectivePower => Instance != null ? Instance.Species.power : 0f;
+        // 물고기 유효 힘 — §7 수식(텐션 감소·도망 간격·도망 지속) 전부가 이 값을 참조한다.
+        // 비늘털이 스윙 성공 디버프(×0.8, §7-5)가 활성인 동안 낮아진다.
+        private float EffectivePower
+        {
+            get
+            {
+                if (Instance == null) return 0f;
+                float power = Instance.Species.power;
+                return Time.time < m_debuffUntil ? power * m_tuning.shakeDebuffMul : power;
+            }
+        }
 
         // ── Idle → Approach → Bite (step-03) ─────────────────────────
 
@@ -175,20 +196,31 @@ namespace CampLantern.Fishing
             EnterFightNormal();
         }
 
-        /// <summary>Fight-평상 진입/복귀 — 텐션은 건드리지 않는다(초기화는 StartFight에서만, §7-2).</summary>
+        /// <summary>
+        /// Fight-평상 진입/복귀 — 텐션은 건드리지 않는다(초기화는 StartFight에서만, §7-2).
+        /// 다음 도망까지 간격을 여기서 재산정 — 기산점 = 이전 도망 종료 시점(§7-3 소프트락 방지:
+        /// 힘이 최대여도 흰색 릴링 기회가 최소 약 1초 보장된다).
+        /// </summary>
         private void EnterFightNormal()
         {
-            // step-05: 다음 도망까지 간격 재산정(§7-3 — 기산점은 이전 도망 종료 시점)
+            m_nextEscapeIn = FishingFormulas.NextEscapeInterval(EffectivePower, FishSpeciesTable.PowerMax);
             SetState(FishState.FightNormal);
             SetLine(LineColor.White);
         }
 
         /// <summary>
-        /// §7-1: 흰색 + 트리거 홀드 중에만 체력 감소 (체력 -= 낚싯대힘 × Δt).
-        /// 자연 회복 없음(§1) — 줄만 안 끊기면 시간이 걸려도 반드시 잡힌다.
+        /// §7-1: 흰색 + 트리거 홀드 중에만 체력 감소 (체력 -= 낚싯대힘 × Δt). 자연 회복 없음(§1).
+        /// 도망 간격 타이머(§7-3)도 여기서만 흐른다.
         /// </summary>
         private void UpdateFightNormal()
         {
+            m_nextEscapeIn -= Time.deltaTime;
+            if (m_nextEscapeIn <= 0f)
+            {
+                TriggerEscape();
+                return;
+            }
+
             if (m_rod == null || !m_rod.Reeling) return;
 
             Health -= FishingFormulas.HealthDecayPerSecond(m_rod.Rod, EffectivePower) * Time.deltaTime;
@@ -199,6 +231,92 @@ namespace CampLantern.Fishing
                 Health = 0f;
                 EnterHooked();
             }
+        }
+
+        // ── 도망 / 비늘털이 (step-05, §7-3~7-5) ──────────────────────
+
+        /// <summary>도망 간격 만료 — §7-5 확률로 비늘털이가 일반 도망을 대체. 비늘털이 직후는 반드시 일반 도망.</summary>
+        private void TriggerEscape()
+        {
+            bool shake = !m_lastWasShake &&
+                         UnityEngine.Random.value < FishingFormulas.ShakeChance(EffectivePower, m_tuning);
+            m_lastWasShake = shake;
+
+            if (shake) EnterFightShake();
+            else EnterFightEscape();
+        }
+
+        /// <summary>Fight-도망 (§3-1): 줄 빨간색, 지속 = §7-4. 릴링하면 텐션만 소모(체력 불변).</summary>
+        private void EnterFightEscape()
+        {
+            m_phaseTimer = FishingFormulas.EscapeDuration(EffectivePower);
+            SetState(FishState.FightEscape);
+            SetLine(LineColor.Red);
+        }
+
+        private void UpdateFightEscape()
+        {
+            if (m_rod != null && m_rod.Reeling)
+            {
+                Tension -= FishingFormulas.TensionDecayPerSecond(EffectivePower, isShake: false, m_tuning) * Time.deltaTime;
+                if (Tension <= 0f)
+                {
+                    BreakLine();
+                    return;
+                }
+            }
+
+            m_phaseTimer -= Time.deltaTime;
+            if (m_phaseTimer <= 0f)
+                EnterFightNormal(); // 도망 종료 — 여기가 다음 간격의 기산점(§7-3)
+        }
+
+        /// <summary>
+        /// Fight-비늘털이 (§7-5): 점프 체공(스윙 판정 윈도우). 체공 중 릴링은 텐션 소모 ×1.5.
+        /// 올바른 대응 = "트리거를 떼고 스윙" — 스윙은 성공하면 이득, 실패해도 페널티 없는 보너스 입력.
+        /// </summary>
+        private void EnterFightShake()
+        {
+            m_phaseTimer    = m_tuning.shakeAirborneSeconds;
+            m_swingReceived = false;
+            SetState(FishState.FightShake);
+            SetLine(LineColor.Red);
+        }
+
+        private void UpdateFightShake()
+        {
+            if (m_rod != null && m_rod.Reeling)
+            {
+                Tension -= FishingFormulas.TensionDecayPerSecond(EffectivePower, isShake: true, m_tuning) * Time.deltaTime;
+                if (Tension <= 0f)
+                {
+                    BreakLine();
+                    return;
+                }
+            }
+
+            m_phaseTimer -= Time.deltaTime;
+            if (m_phaseTimer <= 0f)
+            {
+                // 착수 — 스윙 성공 시 유효 힘 ×0.8 디버프(§7-5). 이후 도망 간격·지속·텐션 감소 전부에 반영.
+                if (m_swingReceived)
+                    m_debuffUntil = Time.time + m_tuning.shakeDebuffSeconds;
+                EnterFightNormal();
+            }
+        }
+
+        /// <summary>체공 중 스윙 감지 수신 (입력 어댑터/step-07). FightShake 체공 중에만 유효 — 착수 시 적용.</summary>
+        public void OnSwing()
+        {
+            if (State == FishState.FightShake)
+                m_swingReceived = true;
+        }
+
+        /// <summary>텐션 0 — 줄 끊김. §3-2 통일 실패 처리(원위치 Idle + 체력 리셋).</summary>
+        private void BreakLine()
+        {
+            Debug.Log($"[Fish] 줄 끊김 — {Instance?.Species.fishId} 도주 (§3-2 리셋)", this);
+            ResetToIdle();
         }
 
         /// <summary>체력 0 → Hooked (§7-1). 줄 초록·낚아올림 처리는 step-06.</summary>
@@ -215,6 +333,9 @@ namespace CampLantern.Fishing
         {
             if (Instance != null) Health = Instance.MaxHealth;
             transform.position = m_homePosition;
+            m_lastWasShake  = false;
+            m_swingReceived = false;
+            m_debuffUntil   = 0f;
             SetLine(LineColor.None);
 
             FishingRod rod = m_rod;
