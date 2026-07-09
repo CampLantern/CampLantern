@@ -95,9 +95,16 @@ namespace CampLantern.Fishing
                         ResetToIdle(); // §3-2: 원위치 Idle + 체력 리셋 (미끼는 이미 차감 — §4 챔질 실패 비용)
                     break;
 
-                // FightNormal: step-04 / FightEscape·FightShake: step-05 / Hooked: step-06
+                case FishState.FightNormal:
+                    UpdateFightNormal();
+                    break;
+
+                // FightEscape·FightShake: step-05 / Hooked(낚아올림 대기): step-06
             }
         }
+
+        // 물고기 유효 힘 — §7 수식 전부가 이 값을 참조한다. step-05: 비늘털이 디버프(×0.8) 반영 예정.
+        private float EffectivePower => Instance != null ? Instance.Species.power : 0f;
 
         // ── Idle → Approach → Bite (step-03) ─────────────────────────
 
@@ -159,13 +166,46 @@ namespace CampLantern.Fishing
             }
         }
 
-        // ── Fight 진입 (본 로직은 step-04~05) ─────────────────────────
+        // ── 파이팅 (step-04: Fight-평상 / step-05: 도망·비늘털이) ──────
 
+        /// <summary>챔질 성공 → 시도 시작. 텐션풀은 매 시도마다 rod.tension으로 덮어쓴다 — 이월 없음 (§7-2).</summary>
         private void StartFight()
         {
-            // step-04: 텐션풀 = rod.tension 초기화(§7-2), 릴링 체력 감소(§7-1)
+            Tension = m_rod.Rod.tension;
+            EnterFightNormal();
+        }
+
+        /// <summary>Fight-평상 진입/복귀 — 텐션은 건드리지 않는다(초기화는 StartFight에서만, §7-2).</summary>
+        private void EnterFightNormal()
+        {
+            // step-05: 다음 도망까지 간격 재산정(§7-3 — 기산점은 이전 도망 종료 시점)
             SetState(FishState.FightNormal);
             SetLine(LineColor.White);
+        }
+
+        /// <summary>
+        /// §7-1: 흰색 + 트리거 홀드 중에만 체력 감소 (체력 -= 낚싯대힘 × Δt).
+        /// 자연 회복 없음(§1) — 줄만 안 끊기면 시간이 걸려도 반드시 잡힌다.
+        /// </summary>
+        private void UpdateFightNormal()
+        {
+            if (m_rod == null || !m_rod.Reeling) return;
+
+            Health -= FishingFormulas.HealthDecayPerSecond(m_rod.Rod, EffectivePower) * Time.deltaTime;
+            HealthChanged?.Invoke();
+
+            if (Health <= 0f)
+            {
+                Health = 0f;
+                EnterHooked();
+            }
+        }
+
+        /// <summary>체력 0 → Hooked (§7-1). 줄 초록·낚아올림 처리는 step-06.</summary>
+        private void EnterHooked()
+        {
+            SetState(FishState.Hooked);
+            Hooked?.Invoke();
         }
 
         // ── 실패 처리 통일 규칙 (§3-2) ────────────────────────────────

@@ -88,6 +88,12 @@ namespace CampLantern.Fishing
         /// <summary>챔질 — 현재 물고기에 위임. 유효 판정(Bite 윈도우)은 Fish가 한다.</summary>
         public void Chamjil() => CurrentFish?.OnChamjil();
 
+        /// <summary>릴링(트리거 홀드, §8) 상태 — Fish가 매 프레임 읽는다. 크랭크 회전 아님.</summary>
+        public bool Reeling { get; private set; }
+
+        /// <summary>트리거 홀드 on/off — 입력 어댑터(step-07)/하네스가 호출.</summary>
+        public void SetReeling(bool held) => Reeling = held;
+
         /// <summary>입질(Bite) 진입 시점의 미끼 차감 (§4). 부족하면 false.</summary>
         public bool TryConsumeBait()
         {
@@ -99,10 +105,12 @@ namespace CampLantern.Fishing
         /// <summary>챔질 성공(Fight 진입) 시점의 내구도 차감 (§4).</summary>
         public void ConsumeDurability() => m_rod.durability = Mathf.Max(0, m_rod.durability - 1);
 
-        /// <summary>물고기가 시도 종료(실패 복귀/포획) 시 호출 — 현재 대상 해제.</summary>
+        /// <summary>물고기가 시도 종료(실패 복귀/포획) 시 호출 — 현재 대상 해제 + 홀드 상태 정리.</summary>
         public void ClearCurrent(Fish fish)
         {
-            if (CurrentFish == fish) CurrentFish = null;
+            if (CurrentFish != fish) return;
+            CurrentFish = null;
+            Reeling = false; // 다음 시도에 홀드가 이월되지 않게
         }
 
         // ══ LEGACY — 구 하네스(FishingGroundHarness/P0Harness) 컴파일 호환용, step-09에서 제거 ══
@@ -162,6 +170,14 @@ namespace CampLantern.Fishing
                 case FishState.Approach:
                     Chamjil();
                     break;
+
+                case FishState.FightNormal:
+                case FishState.FightEscape:
+                case FishState.FightShake:
+                    SetReeling(!Reeling); // 구 하네스는 홀드 입력이 없어 토글로 대체
+                    break;
+
+                // Hooked → 낚아올림 매핑은 step-06에서 추가
             }
         }
 
