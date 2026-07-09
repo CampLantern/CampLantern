@@ -120,6 +120,10 @@ namespace CampLantern.EditorTools
                 SetRef(vrui, "m_canvas", canvas);
                 SetRef(vrui, "m_content", crt);
                 SetRef(vrui, "m_title", title);
+                // 항상 플레이어(중앙 눈)를 향하게 — 월드에 고정 배치해도 정면이 보이도록.
+                var faceSo = new SerializedObject(vrui);
+                faceSo.FindProperty("m_faceCamera").boolValue = true;
+                faceSo.ApplyModifiedPropertiesWithoutUndo();
 
                 var invp = root.AddComponent<InventoryPanel>();
                 SetRef(invp, "m_content", crt);

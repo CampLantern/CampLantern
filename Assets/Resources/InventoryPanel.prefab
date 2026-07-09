@@ -219,7 +219,7 @@ MonoBehaviour:
   m_canvas: {fileID: 5785669491594354056}
   m_content: {fileID: 1572559600174424959}
   m_title: {fileID: 4289849523772567124}
-  m_faceCamera: 0
+  m_faceCamera: 1
 --- !u!114 &5634478670389678616
 MonoBehaviour:
   m_ObjectHideFlags: 0
