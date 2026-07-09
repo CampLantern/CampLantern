@@ -93,6 +93,17 @@ MVP 단계 게이트(P0/P1/P2), 검증 지표, 착수 금지 목록.
 - **keywords:** 코인, 재화, currency, 소스, 싱크, source, sink, 소프트 캡, soft cap, DLC, 수익화, 유료, IAP, 가격
 - **when to read:** 재화 획득/소비 로직, 상점, 가격 책정, 유료 콘텐츠 설계 시
 
+### 낚시 시스템 — [gdd/낚시_시스템_세부_기획서.docx](gdd/낚시_시스템_세부_기획서.docx) (원본, 직접 Read 불가·distilled md 아직 없음) + [gdd/낚시_시스템_구현_지시서.md](gdd/낚시_시스템_구현_지시서.md) (Claude Code 구현 지침 + 설계 스펙 §1~9)
+낚시 플로우 5단계(조준·캐스팅/입질/파이팅/후킹 직전/후킹 이후), 물고기 FSM(Idle/Approach/Bite/Fight-평상/Fight-도망/Fight-비늘털이/Hooked/Caught), 줄 색(흰색/빨간색/초록색) 기반 텐션·체력 파이팅 수식, 개체 생성 공유 품질 롤. 산출식(TODO(FORMULA))·임시 데이터(TODO(DATA))·튜닝 값(TODO(TUNING)) 3종 임시 처리 규칙 명시.
+- **keywords:** 낚시, fishing, 캐스팅, 입질, 챔질, 파이팅, 릴링, 텐션, tension, 도망, 비늘털이, 스윙, swing QTE, 후킹, hooked, 줄 색, 미끼, 낚싯대, rod, 내구도, durability, 물고기 FSM, FishSpeciesData, power, sizeMin, sizeMax, lengthMin, lengthMax, weightMin, weightMax, 공유 품질 롤, TODO(FORMULA), TODO(DATA), TODO(TUNING)
+- **when to read:** 낚시(캐스팅/입질/파이팅/텐션·체력 수식/비늘털이 QTE) 관련 코드 착수 전, 구현 지시서 §1~9 진행 시
+
+### 전투 시스템 — [gdd/전투_시스템_세부_기획서.docx](gdd/전투_시스템_세부_기획서.docx) (원본, 직접 Read 불가·distilled md 아직 없음) + [gdd/전투_시스템_구현_지시서.md](gdd/전투_시스템_구현_지시서.md) (Claude Code 단계별 구현 프롬프트 모음, 0~8단계)
+사냥터 전투 — 근접 무기 유효타 판정, 몬스터 FSM(Idle/Chase/Attack/Exhausted/Return), 어그로(근접 타겟팅+약점 고정/감쇄), 스킬 시스템(hit window), 활/화살(당김 기반 초속), 플레이어 규칙(다운/소생/전멸/HP 스케일링/홀스터·내구도), 마지막 단계로 네트워크 권한 분리.
+- **주의:** 구현 지시서 md는 범용 템플릿 문구가 섞여 있음 (프로젝트명 "Camp & Craft", 네임스페이스 `CampCraft.Combat`, 경로 `Docs/...`) — 실제 착수 시 이 프로젝트 컨벤션(`CampLantern.Combat`, `Assets/Scripts/Combat/`, `.claude/domain/gdd/` 경로)으로 치환해서 진행할 것.
+- **keywords:** 전투, combat, 근접, melee, 유효타, 무효타, 활, bow, 화살, arrow, 몬스터, monster, FSM, 어그로, aggro, 히스테리시스, 약점, weakpoint, 스킬, skill, SkillItem, 판정, hit window, hitWindowStart, hitWindowEnd, 판정 규약, 물리 콜백 금지, OnTriggerEnter 금지, IDamageable, ApplyDamage, HitInfo, 다운, 소생, 전멸, 홀스터, holster, 내구도, durability, HP 스케일링, 기여, contribution, MonsterData, MeleeWeaponData, BowData, ArrowData, CombatBalanceData
+- **when to read:** 전투(근접무기/활·화살/몬스터 AI/어그로/스킬/다운·소생) 관련 코드 착수 전, 구현 지시서 단계 진행 시
+
 ---
 
 ## Level 3 — Immutable Constraints
