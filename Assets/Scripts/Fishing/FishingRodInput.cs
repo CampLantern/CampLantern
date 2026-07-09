@@ -67,11 +67,20 @@ namespace CampLantern.Fishing
 
         // ── 릴링: 트리거 홀드 (§8) ──────────────────────────────────
 
+        private bool m_prevReelHeld;
+
         private void UpdateReeling(Keyboard kb)
         {
             bool vrHold   = OVRInput.Get(OVRInput.Axis1D.PrimaryIndexTrigger, m_controller) > m_triggerThreshold;
             bool deskHold = Mouse.current != null && Mouse.current.leftButton.isPressed;
-            m_rod.SetReeling(vrHold || deskHold);
+            bool held     = vrHold || deskHold;
+
+            // 에지 트리거 — 변화 시에만 반영. 매 프레임 덮어쓰면 다른 경로(IMGUI 디버그 토글)의 SetReeling이 무효화된다.
+            if (held != m_prevReelHeld)
+            {
+                m_rod.SetReeling(held);
+                m_prevReelHeld = held;
+            }
         }
 
         // ── 좌/우 스윙: 비늘털이 QTE (§7-5) ─────────────────────────
