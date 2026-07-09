@@ -18,5 +18,8 @@ namespace CampLantern.Core
 
         [Tooltip("상점 판매 시 받는 코인 — 재화 소스 (domain/economy.md)")]
         public int SellPrice;
+
+        [Tooltip("인벤토리·상점 UI 아이콘. ItemIconFactory가 SVG로 생성·배선(Id 매칭). 미할당이면 텍스트만 표시.")]
+        public Sprite Icon;
     }
 }

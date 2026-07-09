@@ -16,6 +16,7 @@ MonoBehaviour:
   DisplayName: "\uBD95\uC5B4"
   Rarity: 0
   SellPrice: 10
+  Icon: {fileID: 21300000, guid: 06b23e1b126797e4987eaa8a3482ec77, type: 3}
   BiteWindowSeconds: 1.2
   MinWaitSeconds: 2
   MaxWaitSeconds: 6

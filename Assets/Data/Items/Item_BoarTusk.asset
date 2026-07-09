@@ -16,3 +16,4 @@ MonoBehaviour:
   DisplayName: "\uBA67\uB3FC\uC9C0 \uC5C4\uB2C8"
   Rarity: 0
   SellPrice: 18
+  Icon: {fileID: 21300000, guid: ba68634ac5ccd4b4db9c6a960adf9e02, type: 3}

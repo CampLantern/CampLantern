@@ -27,6 +27,10 @@ namespace CampLantern.Core
         [Tooltip("캠프 수용량 가중치 — 렌더링·물리 비용 환산값. 0 금지 (성능 상한 안전장치)")]
         public int CapacityWeight = 1;
 
+        [Tooltip("배치 시 인스턴스화되는 3D 비주얼(플레이스홀더 프리미티브). 실제 모델로 교체 대상.")]
         public GameObject Prefab;
+
+        [Tooltip("상점 UI 아이콘. ItemIconFactory가 SVG로 생성·배선(Id 매칭).")]
+        public Sprite Icon;
     }
 }

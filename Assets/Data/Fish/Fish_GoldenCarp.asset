@@ -16,6 +16,7 @@ MonoBehaviour:
   DisplayName: "\uD669\uAE08 \uC789\uC5B4"
   Rarity: 1
   SellPrice: 40
+  Icon: {fileID: 21300000, guid: 1cf3dd2b0f0743c47aa0bd4ab06ed70d, type: 3}
   BiteWindowSeconds: 0.5
   MinWaitSeconds: 6
   MaxWaitSeconds: 14

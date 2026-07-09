@@ -20,3 +20,4 @@ MonoBehaviour:
   RequiredMaterialCount: 2
   CapacityWeight: 2
   Prefab: {fileID: 7083348931892606694, guid: 116c0195d60487240b4fe5a3f78def78, type: 3}
+  Icon: {fileID: 21300000, guid: a3ac7026332b846458919dd522d7e186, type: 3}

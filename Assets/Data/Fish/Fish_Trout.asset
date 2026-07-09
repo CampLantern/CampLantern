@@ -16,6 +16,7 @@ MonoBehaviour:
   DisplayName: "\uC1A1\uC5B4"
   Rarity: 0
   SellPrice: 12
+  Icon: {fileID: 21300000, guid: 4b3f2c0130098784391bb378974fe527, type: 3}
   BiteWindowSeconds: 0.9
   MinWaitSeconds: 3
   MaxWaitSeconds: 8
