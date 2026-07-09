@@ -179,10 +179,17 @@ namespace CampLantern.Bootstrap
 
         // ── 이벤트 배선 ──────────────────────────────────────────────
 
-        private void OnFishCaught(FishDef fish)
+        // 정교화 낚시 획득 적용 — fishId→기존 FishDef 매핑(아이콘·판매가 재사용) + 코인 (design/fishing-detailed)
+        private void OnFishCaught(FishInstance fish, FishReward reward)
         {
-            m_state.Inventory.Add(fish); // FishDef는 ItemDef 파생 — 그대로 인벤토리 투입
-            m_lastLog = $"낚음: {fish.DisplayName}";
+            string displayName = fish.Species.fishId;
+            if (m_registry != null && m_registry.TryGetItem(fish.Species.fishId, out ItemDef def))
+            {
+                m_state.Inventory.Add(def);
+                displayName = def.DisplayName;
+            }
+            m_state.Wallet.Add(reward.coin);
+            m_lastLog = $"낚음: {displayName} ({fish.Length:F1}cm)";
         }
 
         private void OnCooked(ItemDef result)
@@ -326,10 +333,23 @@ namespace CampLantern.Bootstrap
         private void DrawFishing()
         {
             GUILayout.Space(8);
-            GUILayout.Label($"── 낚시 ── 상태: {m_rod.State}");
+            Fish fish = m_rod.CurrentFish;
+            GUILayout.Label($"── 낚시 ── 미끼 {m_rod.BaitCount} · 내구도 {m_rod.Rod.durability}" +
+                            (fish != null ? $" · {fish.State}/{fish.Line} · HP {fish.Health:F1} · 텐션 {fish.Tension:F1}" : " · 대기"));
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("캐스팅")) m_rod.Cast(m_spot);
-            if (GUILayout.Button("챔질")) m_rod.Reel();
+            if (fish == null)
+            {
+                if (GUILayout.Button("캐스팅 (최근접)") &&
+                    m_spot.TryGetNearestFish(m_rod.transform.position, m_rod.Rod.length, out Fish target))
+                    m_rod.Cast(target);
+            }
+            else
+            {
+                if (GUILayout.Button("챔질")) m_rod.Chamjil();
+                if (GUILayout.Button(m_rod.Reeling ? "릴링 중지" : "릴링")) m_rod.SetReeling(!m_rod.Reeling);
+                if (GUILayout.Button("스윙")) fish.OnSwing();
+                if (GUILayout.Button("낚아올림")) fish.Hook();
+            }
             GUILayout.EndHorizontal();
         }
 

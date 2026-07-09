@@ -44,7 +44,9 @@ namespace CampLantern.Fishing
 
         private void Awake()
         {
-            // 배선 누락 대비 — 코드로 확정 (rules/scripts.md)
+            // 배선 누락(런타임 AddComponent 포함) 대비 — 코드로 확정 (rules/scripts.md)
+            if (m_rod == null)  m_rod  = GetComponent<FishingRod>();
+            if (m_rod == null)  m_rod  = FindFirstObjectByType<FishingRod>();
             if (m_spot == null) m_spot = FindFirstObjectByType<FishingSpot>();
         }
 

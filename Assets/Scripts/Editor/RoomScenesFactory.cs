@@ -92,6 +92,10 @@ namespace CampLantern.EditorTools
             var rodGo = new GameObject("FishingRod");
             rodGo.transform.position = new Vector3(0f, 0f, -1f);
             var rod = rodGo.AddComponent<FishingRod>();
+            // VR 입력·햅틱 어댑터 (design/fishing-detailed step-07) — rod/spot 배선
+            var rodInput = rodGo.AddComponent<FishingRodInput>();
+            SetObjectRef(rodInput, "m_rod", rod);
+            SetObjectRef(rodInput, "m_spot", spot);
 
             var networkGo = new GameObject("Network");
             var launcher = networkGo.AddComponent<SessionLauncher>();

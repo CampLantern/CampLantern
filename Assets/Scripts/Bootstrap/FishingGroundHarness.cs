@@ -36,6 +36,8 @@ namespace CampLantern.Bootstrap
         private VoiceController m_voice;
         private PlayerMute m_mute;
         private InventoryPanel m_inventoryPanel;
+        private FishResultPanel m_resultPanel;
+        private int m_xp; // TODO(DATA): XP 용처·저장 미정(§9) — 세션 로컬 누적 표시만
 
         private void Awake()
         {
@@ -59,6 +61,21 @@ namespace CampLantern.Bootstrap
                 m_inventoryPanel.Bind(m_state.Inventory);
             }
 
+            // 획득 결과 패널 — 초기 표시는 소유자(하네스)가 관리 (rules/scripts.md)
+            var resultPrefab = Resources.Load<FishResultPanel>("FishResultPanel");
+            if (resultPrefab != null)
+            {
+                m_resultPanel = Instantiate(resultPrefab);
+                m_resultPanel.transform.SetPositionAndRotation(new Vector3(-1.4f, 1.4f, 1.2f), Quaternion.Euler(0f, 150f, 0f));
+                m_resultPanel.Hide();
+                m_resultPanel.Confirmed -= OnResultConfirmed;
+                m_resultPanel.Confirmed += OnResultConfirmed;
+            }
+
+            // VR 입력 어댑터 — 씬에 없으면 낚싯대에 부착 (Awake에서 rod/spot 자동 해석)
+            if (FindFirstObjectByType<FishingRodInput>() == null)
+                m_rod.gameObject.AddComponent<FishingRodInput>();
+
             m_rod.FishCaught -= OnFishCaught;
             m_rod.FishCaught += OnFishCaught;
         }
@@ -66,23 +83,68 @@ namespace CampLantern.Bootstrap
         private void OnDestroy()
         {
             m_rod.FishCaught -= OnFishCaught;
+            if (m_resultPanel != null) m_resultPanel.Confirmed -= OnResultConfirmed;
         }
+
+        private void OnResultConfirmed() => m_resultPanel.Hide();
 
         private void OnApplicationQuit()
         {
             m_state.Save(); // 낚시터는 EstateManager가 없으므로 배치 목록은 디스크 값 그대로 보존됨
         }
 
-        private void OnFishCaught(FishDef fish)
+        // 획득 적용 — 인벤토리(fishId→기존 FishDef)/코인/XP. 낚시 코어는 이벤트만 발화, 적용은 하네스 책임.
+        private void OnFishCaught(FishInstance fish, FishReward reward)
         {
-            m_state.Inventory.Add(fish);
-            m_lastLog = $"낚음: {fish.DisplayName}";
+            string displayName = fish.Species.fishId;
+            if (m_registry != null && m_registry.TryGetItem(fish.Species.fishId, out ItemDef def))
+            {
+                m_state.Inventory.Add(def); // 기존 FishDef 재사용 — 아이콘·판매가 그대로
+                displayName = def.DisplayName;
+            }
+
+            m_state.Wallet.Add(reward.coin);
+            m_xp += reward.xp; // TODO(DATA): XP 시스템 미정 — 로컬 누적
+
+            m_lastLog = $"낚음: {displayName} ({fish.Length:F1}cm)";
+            if (m_resultPanel != null) m_resultPanel.Show(fish, reward, displayName);
+            m_state.Save();
         }
 
         private void ReturnToLobby()
         {
             m_state.Save();
             SceneManager.LoadScene(m_lobbySceneName);
+        }
+
+        // 정교화 낚시 디버그 조작 (개발용 IMGUI — VR 입력은 FishingRodInput 담당, Quest 빌드 전 제거 대상)
+        private void DrawFishing()
+        {
+            GUILayout.Label($"── 낚시 ── 미끼 {m_rod.BaitCount} · 내구도 {m_rod.Rod.durability} · 코인 {m_state.Wallet.Coins} · XP {m_xp}");
+
+            if (m_resultPanel != null && m_resultPanel.gameObject.activeSelf && GUILayout.Button("결과 닫기"))
+                m_resultPanel.Hide();
+
+            Fish fish = m_rod.CurrentFish;
+            if (fish == null)
+            {
+                if (GUILayout.Button("캐스팅 (최근접 실루엣)"))
+                {
+                    if (m_spot.TryGetNearestFish(m_rod.transform.position, m_rod.Rod.length, out Fish target))
+                        m_rod.Cast(target);
+                    else
+                        m_lastLog = "사거리 안에 물고기 없음";
+                }
+                return;
+            }
+
+            GUILayout.Label($"상태: {fish.State} · 줄: {fish.Line} · HP {fish.Health:F1}/{fish.Instance.MaxHealth:F1} · 텐션 {fish.Tension:F1}");
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("챔질")) m_rod.Chamjil();
+            if (GUILayout.Button(m_rod.Reeling ? "릴링 중지" : "릴링 (홀드)")) m_rod.SetReeling(!m_rod.Reeling);
+            if (GUILayout.Button("스윙")) fish.OnSwing();
+            if (GUILayout.Button("낚아올림")) fish.Hook();
+            GUILayout.EndHorizontal();
         }
 
         private async Task JoinAsync()
@@ -138,11 +200,7 @@ namespace CampLantern.Bootstrap
             }
 
             GUILayout.Space(8);
-            GUILayout.Label($"── 낚시 ── 상태: {m_rod.State}");
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("캐스팅")) m_rod.Cast(m_spot);
-            if (GUILayout.Button("챔질")) m_rod.Reel();
-            GUILayout.EndHorizontal();
+            DrawFishing();
 
             GUILayout.Space(8);
             GUILayout.Label("── 인벤토리 ──");

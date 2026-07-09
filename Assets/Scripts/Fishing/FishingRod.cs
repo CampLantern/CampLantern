@@ -1,5 +1,4 @@
 using System;
-using CampLantern.Core;
 using UnityEngine;
 
 namespace CampLantern.Fishing
@@ -95,11 +94,9 @@ namespace CampLantern.Fishing
             target.BeginApproach(this);
         }
 
-        /// <summary>
-        /// 포획 성공 — 물고기 개체 + 보상(§7-6 임시 1 고정)을 알린다.
-        /// step-09에서 FishCaught로 개명 예정(LEGACY 이벤트 제거와 함께).
-        /// </summary>
-        public event Action<FishInstance, FishReward> FishCaughtDetailed;
+        /// <summary>포획 성공 — 물고기 개체 + 보상(§7-6 임시 1 고정, TODO(FORMULA) 경유)을 알린다.
+        /// Wallet/Inventory 적용은 구독자(하네스) 책임.</summary>
+        public event Action<FishInstance, FishReward> FishCaught;
 
         // Fish.Caught 수신 — 보상 산출(Formulas 경유) → 이벤트 발화 → 대상 해제
         private void OnCurrentFishCaught()
@@ -114,18 +111,8 @@ namespace CampLantern.Fishing
                 coin = FishingFormulas.RewardCoin(instance),
             };
 
-            FishCaughtDetailed?.Invoke(instance, reward);
-            RaiseLegacyFishCaught(ResolveLegacyDef(instance.Species.fishId)); // LEGACY — step-09 제거
+            FishCaught?.Invoke(instance, reward);
             ClearCurrent(fish);
-        }
-
-        // LEGACY: fishId → 기존 FishDef (아이콘·판매가 재사용). 레지스트리 없으면 null — Inventory.Add(null)은 no-op.
-        private static FishDef ResolveLegacyDef(string fishId)
-        {
-            var registry = Resources.Load<ContentRegistry>("ContentRegistry");
-            if (registry != null && registry.TryGetItem(fishId, out ItemDef def))
-                return def as FishDef;
-            return null;
         }
 
         /// <summary>챔질 — 현재 물고기에 위임. 유효 판정(Bite 윈도우)은 Fish가 한다.</summary>
@@ -160,52 +147,6 @@ namespace CampLantern.Fishing
         private void OnDestroy()
         {
             if (CurrentFish != null) CurrentFish.Caught -= OnCurrentFishCaught;
-        }
-
-        // ══ LEGACY — 구 하네스(FishingGroundHarness/P0Harness) 컴파일 호환용, step-09에서 제거 ══
-
-        /// <summary>[LEGACY] 구 하네스의 상태 표시용 — 현재 물고기 상태를 노출.</summary>
-        public FishState State => CurrentFish != null ? CurrentFish.State : FishState.Idle;
-
-        /// <summary>[LEGACY] 구 획득 이벤트(FishDef) — step-06에서 상세 이벤트로 대체, step-09에서 제거.</summary>
-        public event Action<FishDef> FishCaught;
-
-        /// <summary>LEGACY 획득 이벤트 발화 헬퍼 (step-06에서 사용).</summary>
-        protected void RaiseLegacyFishCaught(FishDef def) => FishCaught?.Invoke(def);
-
-        /// <summary>[LEGACY] 구 시그니처 캐스팅 — 스포너(step-08)의 최근접 개체 질의로 위임.</summary>
-        [Obsolete("구 하네스 호환용 임시 — step-09에서 제거")]
-        public void Cast(FishingSpot spot)
-        {
-            if (spot != null && spot.TryGetNearestFish(transform.position, m_rod.length, out Fish fish))
-                Cast(fish);
-        }
-
-        /// <summary>
-        /// [LEGACY] 구 시그니처 릴링 — 물고기 상태별 컨텍스트 액션으로 매핑.
-        /// (Bite/Approach → 챔질. Fight/Hooked 매핑은 step-04/06에서 확장)
-        /// </summary>
-        [Obsolete("구 하네스 호환용 임시 — step-09에서 제거")]
-        public void Reel()
-        {
-            if (CurrentFish == null) return;
-            switch (CurrentFish.State)
-            {
-                case FishState.Bite:
-                case FishState.Approach:
-                    Chamjil();
-                    break;
-
-                case FishState.FightNormal:
-                case FishState.FightEscape:
-                case FishState.FightShake:
-                    SetReeling(!Reeling); // 구 하네스는 홀드 입력이 없어 토글로 대체
-                    break;
-
-                case FishState.Hooked:
-                    CurrentFish.Hook(); // 낚아올림
-                    break;
-            }
         }
 
     }
