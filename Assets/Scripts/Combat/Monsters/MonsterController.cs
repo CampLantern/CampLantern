@@ -59,6 +59,9 @@ namespace CampLantern.Combat.Monsters
         /// <summary>메인 상태 전이 시 (이전, 다음). step-07 애니 드라이버 구독 지점. 구독 해제 필수.</summary>
         public event Action<IMonsterState, IMonsterState> StateChanged;
 
+        /// <summary>오버레이 적용/해제 시 (해제는 null). step-07 애니 드라이버(Stunned 연출) 구독 지점.</summary>
+        public event Action<IOverlayState> OverlayChanged;
+
         /// <summary>Editor 팩토리·런타임 조립용 — MonsterHealth.Configure와 함께 호출할 것.</summary>
         public void Configure(MonsterData data)
         {
@@ -124,12 +127,14 @@ namespace CampLantern.Combat.Monsters
             m_overlay?.Remove(this);
             m_overlay = overlay;
             m_overlay?.Apply(this);
+            OverlayChanged?.Invoke(m_overlay);
         }
 
         public void RemoveOverlay()
         {
             m_overlay?.Remove(this);
             m_overlay = null;
+            OverlayChanged?.Invoke(null);
         }
 
         /// <summary>모든 메인 상태 즉시 종료 (DeathOverlay 전용 — Exit 보장).</summary>

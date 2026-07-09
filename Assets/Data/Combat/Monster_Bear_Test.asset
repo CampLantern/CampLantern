@@ -28,7 +28,7 @@ MonoBehaviour:
     damage: 15
     cooldown: 5
     recoverTime: 1.5
-    animDuration: 1.2
+    animDuration: 1.1333334
     hitWindowStart: 0.3
     hitWindowEnd: 0.6
     minEngage: 0

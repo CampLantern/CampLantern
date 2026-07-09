@@ -139,10 +139,63 @@ namespace CampLantern.EditorTools
                     added++;
                 }
 
+                var animDriver = root.GetComponent<MonsterAnimationDriver>(); // step-07
+                if (animDriver == null)
+                {
+                    animDriver = root.AddComponent<MonsterAnimationDriver>();
+                    added++;
+                }
+                animDriver.Configure(root.GetComponentInChildren<Animator>(), LoadBearAttackClips());
+
                 PrefabUtility.SaveAsPrefabAsset(root, k_prefabPath);
                 Debug.Log($"[MakeAssets] CombatMonster_Bear ensure done (added {added})");
             }
             finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+
+        /// <summary>
+        /// 스킬 animDuration을 매핑된 클립 길이로 동기화 (지시서 5단계 헬퍼 — step-07에서 구현).
+        /// 런타임 SO 변형 대신 에디터에서 에셋 자체를 갱신 — 튜닝 값은 에셋에 산다는 원칙(지시서 규칙 4) 유지,
+        /// 플레이 중 SO 오염(unity-scripting-gotchas) 회피. 클립 매핑은 곰 프리팹의 MonsterAnimationDriver가 소유.
+        /// </summary>
+        [MenuItem("Tools/Make Assets/Combat — Sync Skill Anim Durations")]
+        public static void SyncSkillAnimDurations()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(k_prefabPath);
+            var data = AssetDatabase.LoadAssetAtPath<MonsterData>(k_dataPath);
+            var driver = prefab != null ? prefab.GetComponent<MonsterAnimationDriver>() : null;
+            if (driver == null || data == null || data.skills == null)
+            {
+                Debug.LogError("[MakeAssets] Sync 실패 — 곰 프리팹(드라이버 포함)과 Monster_Bear_Test가 필요. Ensure Components 먼저 실행");
+                return;
+            }
+
+            AnimationClip[] clips = driver.AttackClips;
+            int synced = 0;
+            for (int i = 0; i < data.skills.Count && clips != null && i < clips.Length; i++)
+            {
+                if (clips[i] == null) continue;
+                float before = data.skills[i].animDuration;
+                data.skills[i].animDuration = clips[i].length;
+                Debug.Log($"[MakeAssets] animDuration sync: skill[{i}] {before:F2} -> {clips[i].length:F2} ({clips[i].name})");
+                synced++;
+            }
+
+            EditorUtility.SetDirty(data);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[MakeAssets] Sync Skill Anim Durations done (synced {synced})");
+        }
+
+        // Bear_Attack1 클립 로드 — FBX 서브에셋에서 프리뷰 제외 첫 AnimationClip
+        private static AnimationClip[] LoadBearAttackClips()
+        {
+            const string path = "Assets/BlinkAnimals/Bear/Animations/Bear_Attack1.fbx";
+            foreach (Object sub in AssetDatabase.LoadAllAssetsAtPath(path))
+                if (sub is AnimationClip clip && !clip.name.StartsWith("__preview__"))
+                    return new[] { clip };
+
+            Debug.LogWarning($"[MakeAssets] 공격 클립 없음: {path} — animDuration 동기화 불가 (임시값 유지)");
+            return new AnimationClip[0];
         }
 
         // 피격 볼륨: 몸통 = 합산 바운즈 박스(90%), 머리 = 최장 수평축 끝·상단의 구 (휴리스틱 — 육안 확인 필요)

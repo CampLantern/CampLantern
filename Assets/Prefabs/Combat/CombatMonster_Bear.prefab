@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 8690497022068420037}
   - component: {fileID: 8034528866793639588}
   - component: {fileID: 9144692752549954443}
+  - component: {fileID: 6627498587415360583}
   m_Layer: 0
   m_Name: CombatMonster_Bear
   m_TagString: Untagged
@@ -110,6 +111,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d7ad7262d33b96541976dc183b51167c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Combat.Monsters.SkillHitCheck
+--- !u!114 &6627498587415360583
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5627142985381097673}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 565903fa77aba5c4a8453ea84bbd02eb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Combat.Monsters.MonsterAnimationDriver
+  m_animator: {fileID: 5676421841098700587}
+  m_idleParam: Idle
+  m_walkParam: WalkForward
+  m_chaseParam: Run Forward
+  m_returnParam: WalkForward
+  m_exhaustedParam: Combat Idle
+  m_stunnedParam: Stunned Loop
+  m_deathParam: Death
+  m_hitParam: Get Hit Front
+  m_attackParams:
+  - Attack1
+  m_attackClips:
+  - {fileID: -4722465767704927230, guid: 4988406988758b843b0f0d89fd78ebfc, type: 3}
+  m_hitReassertSeconds: 0.6
 --- !u!1 &7460822792546180390
 GameObject:
   m_ObjectHideFlags: 0
@@ -304,5 +331,10 @@ PrefabInstance:
 --- !u!4 &1740253413662862673 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7292658344771522932, guid: f5b41ba4c79702547a89de7544b80656, type: 3}
+  m_PrefabInstance: {fileID: 9012306907979594789}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &5676421841098700587 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 3734775969355451150, guid: f5b41ba4c79702547a89de7544b80656, type: 3}
   m_PrefabInstance: {fileID: 9012306907979594789}
   m_PrefabAsset: {fileID: 0}

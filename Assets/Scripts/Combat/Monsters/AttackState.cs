@@ -27,6 +27,9 @@ namespace CampLantern.Combat.Monsters
 
         public string Name => m_recovering ? "Attack(Recover)" : "Attack";
 
+        /// <summary>시전 중인 스킬 인덱스 — 애니 드라이버(step-07)가 Attack1~N 매핑에 사용.</summary>
+        public int SkillIndex => m_skillIndex;
+
         public AttackState(int skillIndex)
         {
             m_skillIndex = skillIndex;
