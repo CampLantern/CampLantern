@@ -28,6 +28,8 @@ namespace CampLantern.EditorTools
         private const string k_reelMatPath   = "Assets/RealVRFishing/Models/Tackles/Reel/Materials/Reel_Float_01.mat";
         private const string k_bobberFbxPath = "Assets/RealVRFishing/Models/Tackles/Bobbers/Bobber0.fbx";
         private const string k_bobberMatPath = "Assets/RealVRFishing/Models/Tackles/Bobbers/Materials/Bobber0.mat";
+        private const string k_baitFbxPath   = "Assets/RealVRFishing/Models/Tackles/Baits/Waxworm_ani.fbx";
+        private const string k_baitMatPath   = "Assets/RealVRFishing/Models/Tackles/Baits/Materials/Waxworm.mat";
 
         // 빌트인 → URP 변환 대상 (태클 4종 본체 머티리얼)
         private static readonly string[] k_builtinMats =
@@ -97,11 +99,21 @@ namespace CampLantern.EditorTools
 
                 // 찌 — 프리팹 루트 자식(월드 위치는 런타임에 FishingLineVisual이 지정). 초기 비표시는 소유 컴포넌트 Awake가 관리.
                 GameObject bobber = null;
+                GameObject bait = null;
                 var bobberFbx = AssetDatabase.LoadAssetAtPath<GameObject>(k_bobberFbxPath);
                 if (bobberFbx != null)
+                {
                     bobber = AttachModel(bobberFbx, root.transform, "Bobber",
                         Vector3.zero, Vector3.zero, Vector3.one,
                         AssetDatabase.LoadAssetAtPath<Material>(k_bobberMatPath));
+
+                    // 미끼 왁스웜 — 찌 아래 수중에 매달림. 실측 3cm라 가시성 위해 ×2 (연출 과장, 코지 톤).
+                    var baitFbx = AssetDatabase.LoadAssetAtPath<GameObject>(k_baitFbxPath);
+                    if (baitFbx != null && bobber != null)
+                        bait = AttachModel(baitFbx, bobber.transform, "Bait",
+                            new Vector3(0f, -0.14f, 0f), Vector3.zero, Vector3.one * 2f,
+                            AssetDatabase.LoadAssetAtPath<Material>(k_baitMatPath));
+                }
 
                 // 낚싯줄 — LineRenderer (§2 줄 색 신호의 실체). Sprites/Default는 URP에서도 버텍스 컬러 지원.
                 var lineGo = new GameObject("Line");
@@ -118,6 +130,7 @@ namespace CampLantern.EditorTools
                 SetRef(lineVisual, "m_rod", root.GetComponent<CampLantern.Fishing.FishingRod>());
                 SetRef(lineVisual, "m_tipAnchor", tipAnchor);
                 SetRef(lineVisual, "m_bobber", bobber);
+                SetRef(lineVisual, "m_bait", bait);
                 SetRef(lineVisual, "m_line", line);
 
                 PrefabUtility.SaveAsPrefabAsset(root, k_rodPrefabPath);
@@ -185,6 +198,7 @@ namespace CampLantern.EditorTools
             LogBounds(k_rodFbxPath);
             LogBounds(k_reelFbxPath);
             LogBounds(k_bobberFbxPath);
+            LogBounds(k_baitFbxPath);
         }
 
         private static void LogBounds(string path)
