@@ -371,6 +371,10 @@ namespace CampLantern.EditorTools
                 }
                 else Debug.LogWarning("[MakeAssets] OVRCameraRigRef 컴포넌트를 못 찾음 — 인터랙션 리그 구조 확인");
 
+                // 로코모션/터널링 필수 참조(_playerOrigin/_centerEyeCamera)도 함께 배선 — 안 하면 플레이 시
+                // AssertField 경고 + 이동/터널링 NullRef (InteractionRigRepair 참조).
+                InteractionRigRepair.WireRig(inst, camRig);
+
                 PrefabUtility.SaveAsPrefabAsset(root, rigPath);
                 Debug.Log("[MakeAssets] VRPlayerRig에 레이/포크(+그랩/로코모션) 인터랙션 리그 추가 완료: " + rigPath);
             }

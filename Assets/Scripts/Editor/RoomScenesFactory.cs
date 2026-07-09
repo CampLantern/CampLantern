@@ -96,6 +96,10 @@ namespace CampLantern.EditorTools
             var networkGo = new GameObject("Network");
             var launcher = networkGo.AddComponent<SessionLauncher>();
 
+            // 네트워크 소셜 스택 — 근접 음성(드롭인 멀티는 대화가 핵심) + 아바타. 낚시 로직 자체는 로컬 유지.
+            EnsureVoiceOnNetworkObject(networkGo);
+            AvatarSetupFactory.EnsureOnNetworkObject(networkGo);
+
             var harnessGo = new GameObject("FishingGroundHarness");
             var harness = harnessGo.AddComponent<FishingGroundHarness>();
             SetObjectRef(harness, "m_rod", rod);
@@ -122,10 +126,10 @@ namespace CampLantern.EditorTools
 
             var networkGo = new GameObject("Network");
             var launcher = networkGo.AddComponent<SessionLauncher>();
-            var voice    = networkGo.AddComponent<VoiceController>();
-            networkGo.AddComponent<PlayerMute>();
-            SetObjectRef(voice, "m_voicePlayerPrefab",
-                LoadRequired<NetworkObject>("Assets/Prefabs/VoicePlayer.prefab"));
+
+            // 네트워크 소셜 스택 — 근접 음성 + 세션마다 몸체 스폰. 로컬 영속 리그는 PersistentPlayer 담당.
+            EnsureVoiceOnNetworkObject(networkGo);
+            AvatarSetupFactory.EnsureOnNetworkObject(networkGo);
 
             var harnessGo = new GameObject("HuntZoneHarness");
             var harness = harnessGo.AddComponent<HuntZoneHarness>();
@@ -183,6 +187,102 @@ namespace CampLantern.EditorTools
                 LoadRequired<EstateObjectDef>("Assets/Data/Estate/Estate_Campfire.asset"));
 
             SaveSceneAndRegister(scene, k_estateScenePath);
+        }
+
+        // ── 네트워크 소셜 스택 (음성 + 아바타) ────────────────────────
+
+        // 플레이어가 함께 있는(co-present) 멀티 공존 씬. 로비(싱글)·영지(오프라인 방문 P0 제외)는 제외.
+        private static readonly string[] k_networkedRoomScenes =
+        {
+            "Assets/Scenes/HuntZone_A.unity",    // 협동 사냥
+            "Assets/Scenes/FishingGround.unity", // 드롭인 멀티
+        };
+
+        /// <summary>
+        /// 이미 생성된 방 씬에 네트워크 소셜 스택(근접 음성 + 아바타)을 보장 배선한다(idempotent).
+        /// CreateXxx는 씬이 이미 있으면 early-return하므로, 씬을 지우지 않고 기존 씬을 갱신할 때 이 메뉴를 쓴다.
+        /// </summary>
+        [MenuItem("Tools/Make Assets/Wire Networked Social Stack Into Room Scenes")]
+        public static void WireNetworkedSocialStack()
+        {
+            EditorSceneManager.SaveOpenScenes();
+
+            int wired = 0;
+            foreach (var scenePath in k_networkedRoomScenes)
+            {
+                if (AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) == null)
+                {
+                    Debug.LogWarning($"[MakeAssets] 씬 없음, 건너뜀: {scenePath} — Room Scenes 먼저 생성");
+                    continue;
+                }
+
+                Scene scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+                if (EnsureSocialStackInOpenScene(scene))
+                {
+                    EditorSceneManager.SaveScene(scene);
+                    wired++;
+                    Debug.Log($"[MakeAssets] 네트워크 소셜 스택 배선: {scenePath}");
+                }
+                else
+                {
+                    Debug.Log($"[MakeAssets] 이미 배선됨(변경 없음): {scenePath}");
+                }
+            }
+            Debug.Log($"[MakeAssets] 네트워크 소셜 스택 배선 완료 — {wired}개 씬 갱신");
+        }
+
+        /// <summary>열린 씬에서 SessionLauncher를 가진 Network 오브젝트에 음성 + 아바타를 보장 배선. 변경 시 true.</summary>
+        private static bool EnsureSocialStackInOpenScene(Scene scene)
+        {
+            SessionLauncher launcher = null;
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                launcher = root.GetComponentInChildren<SessionLauncher>(true);
+                if (launcher != null) break;
+            }
+            if (launcher == null)
+            {
+                Debug.LogWarning($"[MakeAssets] {scene.name}: SessionLauncher 없음 — 배선 건너뜀");
+                return false;
+            }
+
+            bool changed = EnsureVoiceOnNetworkObject(launcher.gameObject);
+            changed |= AvatarSetupFactory.EnsureOnNetworkObject(launcher.gameObject);
+            return changed;
+        }
+
+        /// <summary>
+        /// Network GameObject에 VoiceController + PlayerMute를 보장 배선하고 음성 아바타 프리팹을 연결한다.
+        /// 이미 있으면 프리팹 참조만 보정. 근접 음성이 필요한 멀티 공존 씬(사냥터·낚시터)에서 공통 호출. 변경 시 true.
+        /// </summary>
+        public static bool EnsureVoiceOnNetworkObject(GameObject networkGo)
+        {
+            bool changed = false;
+
+            var voice = networkGo.GetComponent<VoiceController>();
+            if (voice == null)
+            {
+                voice = networkGo.AddComponent<VoiceController>();
+                changed = true;
+            }
+            if (networkGo.GetComponent<PlayerMute>() == null)
+            {
+                networkGo.AddComponent<PlayerMute>();
+                changed = true;
+            }
+
+            var prefab = LoadRequired<NetworkObject>("Assets/Prefabs/VoicePlayer.prefab");
+            var so = new SerializedObject(voice);
+            var prop = so.FindProperty("m_voicePlayerPrefab");
+            if (prop == null)
+                throw new System.InvalidOperationException("[MakeAssets] VoiceController.m_voicePlayerPrefab 필드 없음");
+            if (prop.objectReferenceValue != prefab)
+            {
+                prop.objectReferenceValue = prefab;
+                so.ApplyModifiedPropertiesWithoutUndo();
+                changed = true;
+            }
+            return changed;
         }
 
         // ── 헬퍼 ─────────────────────────────────────────────────────

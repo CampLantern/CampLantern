@@ -210,6 +210,10 @@ namespace CampLantern.EditorTools
             SetObjectRef(voice, "m_voicePlayerPrefab",
                 LoadRequired<NetworkObject>("Assets/Prefabs/VoicePlayer.prefab"));
 
+            // 네트워크 아바타(세션마다 몸체 스폰) — 로컬 영속 리그는 PersistentPlayer 담당이라 여기선 배선하지 않는다.
+            // 이 호출로 P0Playground 재생성 시에도 아바타 배선이 유지된다(기존엔 수동 배선이라 재생성 시 유실).
+            AvatarSetupFactory.EnsureOnNetworkObject(networkGo);
+
             // 하네스 — 전 시스템 배선
             var harnessGo = new GameObject("P0Harness");
             var harness = harnessGo.AddComponent<P0Harness>();

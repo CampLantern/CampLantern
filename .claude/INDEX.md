@@ -39,8 +39,8 @@ C#/.NET 언어 핵심 및 메모리 최적화.
 
 ### [knowledge/unity-editor-automation.md](knowledge/unity-editor-automation.md)
 ClaudeBridge 스택 — Claude가 Unity Editor 작업(에셋 생성, 씬 조작, 컴파일 확인)을 직접 수행하는 방법.
-- **keywords:** ClaudeBridge, bridge, inbox, outbox, unity_call, batch, headless, Editor 자동화, 씬 조작, GameObject 생성, 컴파일 확인, 임포트 경합, CS0246, rsp, scriptCompilationFailed, 병렬 에이전트
-- **when to read:** Unity Editor 조작이 필요한 작업 시 (에셋/씬/프리팹 생성, Play Mode 확인, 컴파일 검증). `/make-assets`·`/run` 스킬과 연계
+- **keywords:** ClaudeBridge, bridge, inbox, outbox, unity_call, batch, headless, Editor 자동화, 씬 조작, GameObject 생성, 컴파일 확인, 임포트 경합, CS0246, rsp, scriptCompilationFailed, 병렬 에이전트, Play Mode 검증, 스모크 테스트, 플레이 검증, EnterPlaymode, ExitPlaymode, isPlaying, ScreenCapture, 스크린샷, 로그 기준점, Reflection.Invoke, Editor.log, 직접 파일 드롭
+- **when to read:** Unity Editor 조작이 필요한 작업 시 (에셋/씬/프리팹 생성, Play Mode 확인, 컴파일 검증). **에이전트가 직접 컴파일·플레이 검증을 해야 할 때(런북 포함).** `/make-assets`·`/run`·`/qa` 스킬과 연계
 
 ### [knowledge/debugging/](knowledge/debugging/) — 디버깅 원칙 (per-file)
 디버깅 방법론 원칙 10개.

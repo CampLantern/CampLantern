@@ -97,6 +97,39 @@ Prefab.Save
 Prefab.Close
 ```
 
+## 컴파일 · Play Mode 검증 런북 (직접 파일 드롭 방식) — 실측 확인됨 2026-07-09
+
+MCP 래퍼(`unity_call`)가 없는 환경에서도 **`.claude-bridge/inbox/<id>.json` 직접 쓰기 + outbox 폴링**만으로 컴파일·플레이 검증을 끝낼 수 있다. GUI 상주 서버가 떠 있으면(`[ClaudeBridge] Started` 로그) 200ms 폴링으로 픽업된다. **이 절차로 "사용자에게 플레이 시키지 말고" 에이전트가 직접 검증한다.**
+
+### 커맨드 봉투 & 폴링
+
+```jsonc
+// 드롭: .claude-bridge/inbox/<id>.json
+{"id":"zzX","op":"Reflection.Invoke","argsJson":"{\"typeName\":\"...\",\"methodName\":\"...\",\"targetInstanceId\":\"\",\"argTypes\":[],\"argsJson\":[]}"}
+// argsJson은 op별 구조체를 "문자열로" 직렬화(내부 따옴표 이스케이프). 정적 메서드면 targetInstanceId="".
+```
+PowerShell 폴링: `while(-not(Test-Path outbox\zzX.json)){Start-Sleep -Milliseconds 400}` → `ok:true` 확인. 처리된 inbox 파일은 브릿지가 자동 삭제.
+
+### 컴파일 검증 (2가지, 병행)
+1. `Asset.Refresh`(argsJson `"{}"`) → 재컴파일. **응답은 리로드에 먹힐 수 있으니** 결과 판정은 로그로: `%LOCALAPPDATA%\Unity\Editor\Editor.log`에서 `error CS` 0건.
+2. **가장 확실**: 이번에 추가/수정한 `public static` 메서드를 `Reflection.Invoke`로 **직접 호출**. `ok:true`(Method not found 아님)면 = 그 어셈블리가 최신 코드로 컴파일·로드됨이 증명된다. Editor 어셈블리(팩토리)가 런타임 어셈블리를 참조하므로 **양쪽 클린 컴파일이 전이적으로 증명**된다. (대안: `Reflection.Invoke UnityEditor.EditorUtility.get_scriptCompilationFailed` == `"False"`.)
+
+### Play Mode 스모크 테스트 절차
+Reflection.Invoke 대상(전부 `UnityEditor.EditorApplication` 정적, 무인자): `EnterPlaymode`(void) / `get_isPlaying`(bool) / `ExitPlaymode`(void). 스크린샷은 `UnityEngine.ScreenCapture.CaptureScreenshot` (argTypes `["System.String"]`, argsJson `["<절대경로>.png"]`, 다음 프레임에 비동기 기록).
+
+1. `Scene.Open` 으로 검증할 씬 열기 (argsJson `{"path":"Assets/Scenes/Xxx.unity"}`).
+2. **로그 기준점 기록**: `(Get-Content Editor.log | Measure-Object -Line).Lines` → `N`. ← **필수**. 안 하면 직전 플레이의 예외가 섞여 오탐.
+3. `EnterPlaymode` → 8~11초 대기 → `get_isPlaying` == `"True"` 확인 (에디터 안 멈춤 = 씬 로드 OK).
+4. `CaptureScreenshot` → 3초 대기 → PNG를 Read 툴로 직접 눈으로 확인(렌더/아바타 손 등).
+5. **신규 로그만 검사**: `Get-Content Editor.log | Select-Object -Skip N | Select-String 'AssertionException|NullReferenceException|error '`. 내 코드 태그(`[FishingGroundHarness]` 등)도 같이 grep.
+6. `ExitPlaymode` (실패해도 반드시). 마지막에 `zz*.json` 임시 파일 inbox/outbox에서 삭제.
+
+### 함정 (이번에 실제로 겪음)
+- **한글 Debug.Log는 콘솔에서 깨진다(mojibake)** → grep은 ASCII 마커로: `[MakeAssets]`, `error CS`, `AssertionException`, `ClipUpgradeHelper`(아바타 로딩 정상 신호).
+- **`Asset.Refresh`/`SaveAsPrefabAsset` 후 도메인 리로드로 내 `[MakeAssets]` 메시지가 로그 아래로 밀린다** → `-Tail 400` 이상 넓게 검색.
+- **검증 불가 구간**: 상대 아바타·음성(진짜 2피어 필요 — 더미 피어는 아바타·음성 둘 다 안 띄움), 헤드셋 상호작용(스크린샷 정지 화면까지만).
+- **연쇄 필수 참조**: 리그 필드처럼 "A를 넣으면 B도 필수"인 경우가 있다(예: `FirstPersonLocomotor._playerOrigin` 넣으면 `_playerEyes`도 요구) → 한 번 고치고 play로 재검증해 남은 Assertion 확인, 없어질 때까지 반복.
+
 ## 에이전트가 선제 호출해도 되는 순간
 
 사용자 명령 없어도 판단해서 호출:

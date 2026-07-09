@@ -222,6 +222,9 @@ GameObject:
   m_Component:
   - component: {fileID: 480180824}
   - component: {fileID: 480180823}
+  - component: {fileID: 480180827}
+  - component: {fileID: 480180826}
+  - component: {fileID: 480180825}
   m_Layer: 0
   m_Name: Network
   m_TagString: Untagged
@@ -256,6 +259,45 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &480180825
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 480180822}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 51fa86230e0924e468513fad74ee7721, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Networking.Avatar.AvatarController
+  m_avatarPrefab: {fileID: 2663442902015129799, guid: d32bfe77913d75d4f919b5c9ae778fa7, type: 3}
+  m_presetAvatarCount: 6
+--- !u!114 &480180826
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 480180822}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1115734c0b5a9a418488b3bd269e506, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Networking.Voice.PlayerMute
+--- !u!114 &480180827
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 480180822}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9936f565cd4fbf4409d76a8723700b73, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Networking.Voice.VoiceController
+  m_voicePlayerPrefab: {fileID: 6207744144574225424, guid: 7bc9c545015145e48964a5592dd9ecd7, type: 3}
 --- !u!1 &541334252
 GameObject:
   m_ObjectHideFlags: 0

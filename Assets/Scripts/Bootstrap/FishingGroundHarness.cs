@@ -5,6 +5,8 @@ using CampLantern.Core;
 using CampLantern.Core.Persistence;
 using CampLantern.Fishing;
 using CampLantern.Networking;
+using CampLantern.Networking.Voice;
+using Fusion;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -30,6 +32,9 @@ namespace CampLantern.Bootstrap
         private bool m_joining;
         private string m_lastLog = "-";
 
+        private VoiceController m_voice;
+        private PlayerMute m_mute;
+
         private void Awake()
         {
             m_registry = Resources.Load<ContentRegistry>("ContentRegistry");
@@ -38,6 +43,10 @@ namespace CampLantern.Bootstrap
 
             m_state = new PlayerState();
             if (m_registry != null) m_state.Load(m_registry);
+
+            // 근접 음성 — Network 오브젝트(SessionLauncher와 같은 GO)에 배선됨. HuntZone과 동일 패턴.
+            m_voice = m_launcher.GetComponent<VoiceController>();
+            m_mute  = m_launcher.GetComponent<PlayerMute>();
 
             m_rod.FishCaught -= OnFishCaught;
             m_rod.FishCaught += OnFishCaught;
@@ -102,6 +111,19 @@ namespace CampLantern.Bootstrap
             else
             {
                 GUILayout.Label($"접속: {runner.SessionInfo.Name} ({runner.SessionInfo.PlayerCount}명) — 고정 샤드, 실제 매칭/샤딩 TBD");
+
+                if (m_voice != null && GUILayout.Button($"마이크 {(m_voice.MicEnabled ? "끄기" : "켜기")}"))
+                    m_voice.SetMicEnabled(!m_voice.MicEnabled);
+                if (m_mute != null)
+                {
+                    foreach (PlayerRef player in runner.ActivePlayers)
+                    {
+                        if (player == runner.LocalPlayer) continue;
+                        bool muted = m_mute.IsMuted(player);
+                        if (GUILayout.Button($"P{player.PlayerId} 음소거 {(muted ? "해제" : "")}"))
+                            m_mute.SetMuted(player, !muted);
+                    }
+                }
             }
 
             GUILayout.Space(8);

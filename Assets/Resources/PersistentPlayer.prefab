@@ -106,10 +106,18 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6954225532030340281}
     m_Modifications:
+    - target: {fileID: 1118805363768902051, guid: b3161e53f8b07b24993190979695fc96, type: 3}
+      propertyPath: _centerEyeCamera
+      value: 
+      objectReference: {fileID: 2116214325189863714}
     - target: {fileID: 1138141819928862683, guid: b3161e53f8b07b24993190979695fc96, type: 3}
       propertyPath: m_Name
       value: VRPlayerRig
       objectReference: {fileID: 0}
+    - target: {fileID: 3017573454065197685, guid: b3161e53f8b07b24993190979695fc96, type: 3}
+      propertyPath: _centerEyeCamera
+      value: 
+      objectReference: {fileID: 2116214325189863714}
     - target: {fileID: 5258652958450196589, guid: b3161e53f8b07b24993190979695fc96, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -150,11 +158,24 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 9180688624530035879, guid: b3161e53f8b07b24993190979695fc96, type: 3}
+      propertyPath: _playerEyes
+      value: 
+      objectReference: {fileID: 6603164415298885198}
+    - target: {fileID: 9180688624530035879, guid: b3161e53f8b07b24993190979695fc96, type: 3}
+      propertyPath: _playerOrigin
+      value: 
+      objectReference: {fileID: 5549736429429987713}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b3161e53f8b07b24993190979695fc96, type: 3}
+--- !u!20 &2116214325189863714 stripped
+Camera:
+  m_CorrespondingSourceObject: {fileID: 1774611039666294990, guid: b3161e53f8b07b24993190979695fc96, type: 3}
+  m_PrefabInstance: {fileID: 432032074166385132}
+  m_PrefabAsset: {fileID: 0}
 --- !u!114 &4644681858512348010 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 5011340264180505222, guid: b3161e53f8b07b24993190979695fc96, type: 3}
@@ -169,6 +190,11 @@ MonoBehaviour:
 --- !u!4 &5549736429429987713 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5258652958450196589, guid: b3161e53f8b07b24993190979695fc96, type: 3}
+  m_PrefabInstance: {fileID: 432032074166385132}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &6603164415298885198 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 6799808634619490210, guid: b3161e53f8b07b24993190979695fc96, type: 3}
   m_PrefabInstance: {fileID: 432032074166385132}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &7631833415687554590
