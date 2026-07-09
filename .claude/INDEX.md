@@ -24,7 +24,7 @@
 
 ### [knowledge/unity-scripting-gotchas.md](knowledge/unity-scripting-gotchas.md)
 모델이 자주 틀리는 Unity 스크립팅 함정 3선.
-- **keywords:** serialization depth, serialization null, ISerializationCallbackReceiver, SerializeReference, Dictionary serialize, inline serialization, coroutine stop, enabled false coroutine, WaitForSecondsRealtime, timeScale pause, IL2CPP, Managed Code Stripping, link.xml, Preserve, SerializedObject, FindProperty, NullReferenceException, Slider fillRect, Editor script, make-assets, Rigidbody velocity, linearVelocity, FindObjectOfType, FindObjectsOfType, FindFirstObjectByType, Obsolete, Unity 6, 2022 to 6000 migration
+- **keywords:** serialization depth, serialization null, ISerializationCallbackReceiver, SerializeReference, Dictionary serialize, inline serialization, coroutine stop, enabled false coroutine, WaitForSecondsRealtime, timeScale pause, IL2CPP, Managed Code Stripping, link.xml, Preserve, SerializedObject, FindProperty, NullReferenceException, Slider fillRect, Editor script, make-assets, Rigidbody velocity, linearVelocity, FindObjectOfType, FindObjectsOfType, FindFirstObjectByType, Obsolete, Unity 6, 2022 to 6000 migration, activeInputHandler, New Input System, InputSystem, legacy Input, Keyboard.current, InvalidOperationException
 - **when to read:** `[Serializable]` 필드 설계, 코루틴으로 타이머/일시정지 구현, iOS·Quest 빌드 실패 (MissingMethod/TypeLoad) 대비, Editor Factory 스크립트 작성 시, Rigidbody/물리 코드나 FindObjectOfType류 코드를 새로 작성/수정할 때
 
 ### [knowledge/csharp-dotnet.md](knowledge/csharp-dotnet.md)
@@ -39,7 +39,7 @@ C#/.NET 언어 핵심 및 메모리 최적화.
 
 ### [knowledge/unity-editor-automation.md](knowledge/unity-editor-automation.md)
 ClaudeBridge 스택 — Claude가 Unity Editor 작업(에셋 생성, 씬 조작, 컴파일 확인)을 직접 수행하는 방법.
-- **keywords:** ClaudeBridge, bridge, inbox, outbox, unity_call, batch, headless, Editor 자동화, 씬 조작, GameObject 생성, 컴파일 확인, 임포트 경합, CS0246, rsp, scriptCompilationFailed, 병렬 에이전트, Play Mode 검증, 스모크 테스트, 플레이 검증, EnterPlaymode, ExitPlaymode, isPlaying, ScreenCapture, 스크린샷, 로그 기준점, Reflection.Invoke, Editor.log, 직접 파일 드롭
+- **keywords:** ClaudeBridge, bridge, inbox, outbox, unity_call, batch, headless, Editor 자동화, 씬 조작, GameObject 생성, 컴파일 확인, 임포트 경합, CS0246, rsp, scriptCompilationFailed, 병렬 에이전트, Play Mode 검증, 스모크 테스트, 플레이 검증, EnterPlaymode, ExitPlaymode, isPlaying, ScreenCapture, 스크린샷, 로그 기준점, Reflection.Invoke, Editor.log, 직접 파일 드롭, 봇 주입, 자가 검증 봇, 무인 통합테스트, Component.Add, stale 경고, CS0618 재출력
 - **when to read:** Unity Editor 조작이 필요한 작업 시 (에셋/씬/프리팹 생성, Play Mode 확인, 컴파일 검증). **에이전트가 직접 컴파일·플레이 검증을 해야 할 때(런북 포함).** `/make-assets`·`/run`·`/qa` 스킬과 연계
 
 ### [knowledge/debugging/](knowledge/debugging/) — 디버깅 원칙 (per-file)
@@ -93,10 +93,10 @@ MVP 단계 게이트(P0/P1/P2), 검증 지표, 착수 금지 목록.
 - **keywords:** 코인, 재화, currency, 소스, 싱크, source, sink, 소프트 캡, soft cap, DLC, 수익화, 유료, IAP, 가격
 - **when to read:** 재화 획득/소비 로직, 상점, 가격 책정, 유료 콘텐츠 설계 시
 
-### 낚시 시스템 — [gdd/낚시_시스템_세부_기획서.docx](gdd/낚시_시스템_세부_기획서.docx) (원본, 직접 Read 불가·distilled md 아직 없음) + [gdd/낚시_시스템_구현_지시서.md](gdd/낚시_시스템_구현_지시서.md) (Claude Code 구현 지침 + 설계 스펙 §1~9)
-낚시 플로우 5단계(조준·캐스팅/입질/파이팅/후킹 직전/후킹 이후), 물고기 FSM(Idle/Approach/Bite/Fight-평상/Fight-도망/Fight-비늘털이/Hooked/Caught), 줄 색(흰색/빨간색/초록색) 기반 텐션·체력 파이팅 수식, 개체 생성 공유 품질 롤. 산출식(TODO(FORMULA))·임시 데이터(TODO(DATA))·튜닝 값(TODO(TUNING)) 3종 임시 처리 규칙 명시.
-- **keywords:** 낚시, fishing, 캐스팅, 입질, 챔질, 파이팅, 릴링, 텐션, tension, 도망, 비늘털이, 스윙, swing QTE, 후킹, hooked, 줄 색, 미끼, 낚싯대, rod, 내구도, durability, 물고기 FSM, FishSpeciesData, power, sizeMin, sizeMax, lengthMin, lengthMax, weightMin, weightMax, 공유 품질 롤, TODO(FORMULA), TODO(DATA), TODO(TUNING)
-- **when to read:** 낚시(캐스팅/입질/파이팅/텐션·체력 수식/비늘털이 QTE) 관련 코드 착수 전, 구현 지시서 §1~9 진행 시
+### 낚시 시스템 — [domain/fishing-system.md](domain/fishing-system.md) (구현 결정·암묵지, **구현 완료 2026-07-09**) + [gdd/낚시_시스템_구현_지시서.md](gdd/낚시_시스템_구현_지시서.md) (설계 스펙 §1~9 원본) + [gdd/낚시_시스템_세부_기획서.docx](gdd/낚시_시스템_세부_기획서.docx) (직접 Read 불가)
+낚시 플로우 5단계(조준·캐스팅/입질/파이팅/후킹 직전/후킹 이후), 물고기 FSM(Idle/Approach/Bite/Fight-평상/Fight-도망/Fight-비늘털이/Hooked/Caught), 줄 색(흰색/빨간색/초록색) 기반 텐션·체력 파이팅 수식, 개체 생성 공유 품질 롤. 산출식(TODO(FORMULA))·임시 데이터(TODO(DATA))·튜닝 값(TODO(TUNING)) 3종 임시 처리 규칙 명시. 구현은 `Assets/Scripts/Fishing/` — fishId=FishDef.Id 연결 고리·새 어종 추가 4종 세트·무인 검증 봇은 domain 문서 참조.
+- **keywords:** 낚시, fishing, 캐스팅, 입질, 챔질, 파이팅, 릴링, 텐션, tension, 도망, 비늘털이, 스윙, swing QTE, 후킹, hooked, 줄 색, 미끼, 낚싯대, rod, 내구도, durability, 물고기 FSM, Fish, FishState, FishingRod, FishingSpot 스포너, FishingFormulas, FishingTuning, FishingRodInput, FishingLoopSelfTest, 검증 봇, FishSpeciesData, fishId 매핑, 새 어종 추가, 실루엣, 에지 트리거, power, sizeMin, sizeMax, lengthMin, lengthMax, weightMin, weightMax, 공유 품질 롤, TODO(FORMULA), TODO(DATA), TODO(TUNING)
+- **when to read:** 낚시(캐스팅/입질/파이팅/텐션·체력 수식/비늘털이 QTE) 코드 수정·어종 추가·튜닝 전 — domain/fishing-system.md 먼저, 수식 근거는 지시서 §7
 
 ### 전투 시스템 — [gdd/전투_시스템_세부_기획서.docx](gdd/전투_시스템_세부_기획서.docx) (원본, 직접 Read 불가·distilled md 아직 없음) + [gdd/전투_시스템_구현_지시서.md](gdd/전투_시스템_구현_지시서.md) (Claude Code 단계별 구현 프롬프트 모음, 0~8단계)
 사냥터 전투 — 근접 무기 유효타 판정, 몬스터 FSM(Idle/Chase/Attack/Exhausted/Return), 어그로(근접 타겟팅+약점 고정/감쇄), 스킬 시스템(hit window), 활/화살(당김 기반 초속), 플레이어 규칙(다운/소생/전멸/HP 스케일링/홀스터·내구도), 마지막 단계로 네트워크 권한 분리.

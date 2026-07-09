@@ -261,3 +261,19 @@ var all = FindObjectsOfType<SomeManager>();
 ```
 
 정렬이 필요 없으면 `FindObjectsSortMode.None`이 더 빠르다 — 프로젝트 관행상 매 프레임 호출하는 코드가 아니어야 함(캐싱 원칙은 `scripts.md` 참조).
+
+---
+
+## 6. 입력 시스템 모드 확인 — legacy Input 런타임 예외
+
+`ProjectSettings/ProjectSettings.asset`의 `activeInputHandler`가 **1(New Input System 전용)**이면
+`UnityEngine.Input.GetKey` 등 legacy API가 **컴파일은 통과하지만 런타임에 InvalidOperationException**을 던진다.
+(0=legacy 전용, 1=New 전용, 2=둘 다.) 컴파일러가 못 잡는 함정이라 입력 코드를 새로 쓰기 **전에** 반드시 확인한다:
+
+```
+Grep "activeInputHandler" ProjectSettings/ProjectSettings.asset
+```
+
+전용 모드면 `UnityEngine.InputSystem`을 쓴다 — `Keyboard.current`/`Mouse.current`는 장치 부재 시 **null**이므로 가드 필수.
+`OVRInput`(Meta XR)은 자체 네이티브 백엔드라 이 설정과 무관하게 동작한다(장치 없으면 0 반환).
+
