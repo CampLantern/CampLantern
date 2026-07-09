@@ -37,6 +37,8 @@ namespace CampLantern.Combat.Monsters
 
         public MonsterData Data => m_data;
         public MonsterHealth Health => m_health;
+        /// <summary>어그로 컨트롤러 (step-05) — 없으면 null (상태들은 null-안전 폴백: 가장 가까운 플레이어).</summary>
+        public AggroController Aggro { get; private set; }
         public Vector3 SpawnPosition { get; private set; }
         public Transform CurrentTarget { get; private set; }
         public string CurrentStateName => m_stateName;
@@ -56,6 +58,7 @@ namespace CampLantern.Combat.Monsters
         private void Awake()
         {
             m_health = GetComponent<MonsterHealth>();
+            Aggro = GetComponent<AggroController>();
             SpawnPosition = transform.position;
 
             m_health.Died -= OnDied;

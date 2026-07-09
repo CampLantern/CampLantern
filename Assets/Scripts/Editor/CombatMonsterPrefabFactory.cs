@@ -67,8 +67,10 @@ namespace CampLantern.EditorTools
             {
                 var controller = root.AddComponent<MonsterController>(); // RequireComponent가 MonsterHealth 선부착
                 var health = root.GetComponent<MonsterHealth>();
+                var aggro = root.AddComponent<AggroController>();        // step-05 — 어그로 6규칙
                 controller.Configure(data);
                 health.Configure(data);
+                aggro.Configure(data);
 
                 // 실제 아트 — 중첩 프리팹 연결 유지 (Animator+BearAnimator.controller 포함)
                 var visual = (GameObject)PrefabUtility.InstantiatePrefab(bearArt, root.transform);
@@ -84,6 +86,46 @@ namespace CampLantern.EditorTools
             }
             finally { Object.DestroyImmediate(root); }
             AssetDatabase.Refresh();
+        }
+
+        /// <summary>
+        /// 기존 곰 프리팹에 이후 단계 컴포넌트를 보장 배선한다(멱등 — 수동 조정 보존).
+        /// CreateBear는 프리팹이 있으면 skip하므로, 단계가 진행되며 컴포넌트가 늘 때 이 메뉴를 재실행한다.
+        /// 현재 보장 목록: AggroController(step-05). 이후 단계 컴포넌트는 여기에 추가.
+        /// </summary>
+        [MenuItem("Tools/Make Assets/Combat Monster — Ensure Components")]
+        public static void EnsureBearComponents()
+        {
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(k_prefabPath) == null)
+            {
+                Debug.LogError($"[MakeAssets] 곰 프리팹 없음: {k_prefabPath} — 먼저 Combat Monster — Bear 실행");
+                return;
+            }
+
+            var data = AssetDatabase.LoadAssetAtPath<MonsterData>(k_dataPath);
+            if (data == null)
+            {
+                Debug.LogError($"[MakeAssets] MonsterData 없음: {k_dataPath}");
+                return;
+            }
+
+            GameObject root = PrefabUtility.LoadPrefabContents(k_prefabPath);
+            try
+            {
+                int added = 0;
+
+                var aggro = root.GetComponent<AggroController>();
+                if (aggro == null)
+                {
+                    aggro = root.AddComponent<AggroController>();
+                    added++;
+                }
+                aggro.Configure(data); // 데이터 참조는 항상 재주입 (멱등)
+
+                PrefabUtility.SaveAsPrefabAsset(root, k_prefabPath);
+                Debug.Log($"[MakeAssets] CombatMonster_Bear ensure done (added {added})");
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
         }
 
         // 피격 볼륨: 몸통 = 합산 바운즈 박스(90%), 머리 = 최장 수평축 끝·상단의 구 (휴리스틱 — 육안 확인 필요)

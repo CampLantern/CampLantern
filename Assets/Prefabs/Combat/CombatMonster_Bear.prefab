@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 8493404208805028446}
   - component: {fileID: 5494637190657626320}
   - component: {fileID: 4468462031971998791}
+  - component: {fileID: 8690497022068420037}
   m_Layer: 0
   m_Name: CombatMonster_Bear
   m_TagString: Untagged
@@ -67,6 +68,21 @@ MonoBehaviour:
   m_idleWaitMax: 3
   m_arriveRadius: 0.3
   m_turnSpeed: 360
+--- !u!114 &8690497022068420037
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5627142985381097673}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 067b541b9c24d554fa13650713247212, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Combat.Monsters.AggroController
+  m_data: {fileID: 11400000, guid: 927e1355852bc6f4d827f50473a6ff30, type: 2}
+  m_debugTarget: (none)
+  m_debugLockRemaining: 0
 --- !u!1 &7460822792546180390
 GameObject:
   m_ObjectHideFlags: 0

@@ -57,28 +57,35 @@ namespace CampLantern.Combat.Monsters
     }
 
     /// <summary>
-    /// Chase — 타겟 추적 (chaseMoveSpeed). 가장 가까운 플레이어가 추격 반경 밖이면 즉시 Return.
-    /// 타겟팅은 임시 "가장 가까운 플레이어" 매 틱 갱신 — step-05에서 AggroController 조회로 교체.
+    /// Chase — 타겟 추적 (chaseMoveSpeed). 타겟은 AggroController 조회 (규칙 1~5는 어그로 소관, step-05).
+    /// 추격 반경 판정은 어그로 타겟이 아니라 **가장 가까운 플레이어** 기준 — 가장 가까운 플레이어가
+    /// 반경 밖이면 전원이 밖이므로 무조건 즉시 Return (§4-3 규칙 6, 약점 고정보다 우선).
+    /// AggroController가 없으면 가장 가까운 플레이어 폴백 (검증 봇 등 최소 조립 호환).
     /// </summary>
     public class ChaseState : IMonsterState
     {
         public string Name => "Chase";
 
-        public void Enter(MonsterController owner) { }
+        public void Enter(MonsterController owner)
+        {
+            owner.Aggro?.AcquireIfNone(); // 초기 타겟 획득 — 유효타 트리거 밖의 최초 1회
+        }
 
         public void Tick(MonsterController owner, float deltaTime)
         {
             Transform nearest = owner.FindNearestPlayer();
 
-            // 가장 가까운 플레이어 기준으로 추격 반경 판정 (§4-4 Return 조건, §4-3 규칙 6과 정합)
             if (nearest == null || owner.PlanarDistanceTo(nearest.position) > owner.Data.chaseRadius)
             {
                 owner.TransitionTo(new ReturnState());
                 return;
             }
 
-            owner.SetCurrentTarget(nearest);
-            owner.MoveTowards(nearest.position, owner.Data.chaseMoveSpeed);
+            Transform target = owner.Aggro != null ? owner.Aggro.CurrentTarget : nearest;
+            if (target == null) target = nearest;
+
+            owner.SetCurrentTarget(target);
+            owner.MoveTowards(target.position, owner.Data.chaseMoveSpeed);
         }
 
         public void Exit(MonsterController owner) { }
@@ -94,6 +101,7 @@ namespace CampLantern.Combat.Monsters
 
         public void Enter(MonsterController owner)
         {
+            owner.Aggro?.ResetAggro(); // 규칙 6 — 반경 이탈 리셋은 약점 고정보다 우선
             owner.SetCurrentTarget(null);
             owner.Health.SetInvulnerable(true);
         }
