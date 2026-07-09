@@ -57,6 +57,7 @@ GDD 원본: `.claude/domain/gdd/VR_코지_소셜_영지_게임_기획서.docx` (
 
 - **Tools > Make Assets > Content Registry** — `Assets/Data`를 스캔해 `Assets/Resources/ContentRegistry.asset` 갱신 (`ContentRegistryFactory`). **콘텐츠 데이터(ItemDef/EstateObjectDef 등) 추가 후 반드시 재실행.**
 - **P0 데이터/씬 생성** — `P0DataFactory`(어종·레시피·영지 오브젝트 SO), `P0PlaySceneFactory`(단일 씬 플레이 하네스 배선), `RoomScenesFactory`(로비/낚시터/사냥터/영지 Room 씬), `VoicePlayerFactory`. 실행 진입점은 `P0PlayTestMenu` / `RoomScenesPlayTestMenu`.
+- **프리팹 생성** — `VRPlayerRigFactory`(VR 리그), `StationFactory`(낚시/요리 스테이션), `VRUIFactory`(VR UI 세트: 패널·버튼·EventSystem, `Import TMP Essentials`·`Add Interaction To VR Rig` 메뉴 포함). 전부 `Tools > Make Assets` 아래.
 - 새 콘텐츠·씬이 필요하면 이 팩토리를 확장하거나 `/make-assets` 스킬로 새 Editor 스크립트를 작성한다.
 
 ## 아키텍처
@@ -78,7 +79,8 @@ GDD 원본: `.claude/domain/gdd/VR_코지_소셜_영지_게임_기획서.docx` (
 - **세션 진입**: `Networking.SessionLauncher`가 Fusion 2 **Shared Mode**로 고정 이름 Room 합류(`hunt_zone_{zoneId}` 등). `NetworkRunner`는 씬 배치 없이 런타임 AddComponent. 매칭/샤딩·영지 소유권 인증은 백엔드 미정이라 P0은 고정 이름만.
 - **음성**: `Networking.Voice`(`VoiceController`/`PlayerMute`) — Photon Voice 2 설치 후 동작(step-09 선행 조건).
 - **VR 리그·아바타**: `Networking.Avatar.AvatarController`가 `VoiceController`와 동일 패턴으로 `SessionStarted`에서 플레이어당 네트워크 아바타(Meta `FusionAvatarSdk28Plus`)를 스폰. VR 카메라는 `VRPlayerRig.prefab`(OVRCameraRig+OVRManager). **`P0Playground`는 VR 주도** — 데스크톱 Main Camera 비활성, `AvatarSystem`(VRPlayerRig+OvrAvatarManager+SampleInputManager) 배선됨. 통합 근거·샘플 임포트 함정은 `domain/tech-stack-decisions.md`.
-- **부트스트랩/하네스(`Bootstrap`)**: `P0Harness`(단일 씬 전체 배선 + IMGUI 디버그 UI), 공간별 `LobbyHarness`/`FishingGroundHarness`/`HuntZoneHarness`/`EstateHarness`. **IMGUI(OnGUI)는 개발용 임시** — VR 입력 어댑터로 대체 예정, Quest 빌드 전 제거 대상.
+- **부트스트랩/하네스(`Bootstrap`)**: `P0Harness`(단일 씬 전체 배선 + IMGUI 디버그 UI), 공간별 `LobbyHarness`/`FishingGroundHarness`/`HuntZoneHarness`/`EstateHarness`. **IMGUI(OnGUI)는 개발용 임시** — 실사용 UI는 아래 VR UI 토대로, 개발 조작은 VR 입력 어댑터로 대체 예정(Quest 빌드 전 IMGUI 제거 대상).
+- **VR UI(`UI`)**: 월드스페이스 UGUI 기반 토대 — `VRUIPanel`(월드스페이스 Canvas + Meta Interaction `PointableCanvas` 레이/포크 배선)·`VRUIButton`(Button+TMP 라벨). 프리팹은 `Assets/Prefabs/UI/`(`VRUIPanel`/`VRUIButton`/`VRUIEventSystem`), 생성기는 `VRUIFactory`(Tools > Make Assets > VR UI). 클릭 판정 체인: 리그의 Ray/PokeInteractor → Interactable → PointableCanvas → `VRUIEventSystem`의 PointableCanvasModule → GraphicRaycaster → Button. 리그 인터랙터는 `VRPlayerRig`에 `OVRComprehensiveInteractionRig` 중첩(Tools > Make Assets > Add Interaction To VR Rig — 레이/포크뿐 아니라 그랩·로코모션 포함 올인원). 텍스트는 TMP(Essentials 임포트됨: `Assets/TextMesh Pro`). 나머지 게임 UI(상점·인벤토리 등)는 이 토대를 복제·확장해 짓는다.
 - **싱글톤 미사용**: `PlayerState`·`ContentRegistry`는 하네스/매니저가 생성·주입. 전역 static 매니저 패턴은 아직 도입 안 함.
 
 ## 코드 컨벤션
@@ -86,7 +88,7 @@ GDD 원본: `.claude/domain/gdd/VR_코지_소셜_영지_게임_기획서.docx` (
 P0 코드에서 확립된 실제 컨벤션 (`.claude/rules/scripts.md`의 범용 규칙과 함께 적용):
 
 - **한글 주석** 허용 (실제로 전 코드가 한글 주석·요약 사용).
-- **네임스페이스**: `CampLantern.{영역}` — 폴더명과 일치. 영역: `Core`(+`Core.Data`/`Core.Persistence`), `Cooking`, `Fishing`, `Estate`, `Hunting`, `Networking`(+`Networking.Voice`), `Bootstrap`, `EditorTools`.
+- **네임스페이스**: `CampLantern.{영역}` — 폴더명과 일치. 영역: `Core`(+`Core.Data`/`Core.Persistence`), `Cooking`, `Fishing`, `Estate`, `Hunting`, `Networking`(+`Networking.Voice`/`Networking.Avatar`), `UI`, `Player`, `Bootstrap`, `EditorTools`.
 - **필드 접두사**: 직렬화/인스턴스 필드는 `m_`, `private const`는 `k_`. `[SerializeField] private` + 프로퍼티 노출 패턴.
 - **이벤트**: C# `event Action<T>`로 시스템 간 배선(예: `FishCaught`→Inventory, `RewardGranted`→보상). 구독자는 `OnDestroy`/`OnDisable`에서 해제 (rules/scripts.md).
 - **비동기**: Fusion 세션 등 async 메서드는 `CancellationToken`을 받는다 (`SessionLauncher.StartSession`). 별도 async 라이브러리(UniTask 등)는 아직 미도입.
