@@ -82,12 +82,30 @@ namespace CampLantern.EditorTools
                 P(PrimitiveType.Cylinder, new Vector3(-0.12f, 0.46f, 1.12f),new Vector3(0.045f, 0.13f, 0.045f), tusk, new Vector3(60f, 0f, -15f)),
             };
 
+            const string bearBrown = "#4a3526";
+
+            // ── 곰: 크고 둥글며 두꺼운 다리 (forward = +Z) ──
+            var bear = new List<Part>
+            {
+                P(PrimitiveType.Cube,   new Vector3(0f, 0.85f, 0f),   new Vector3(1.0f, 0.85f, 1.5f), bearBrown), // 몸통(큼)
+                P(PrimitiveType.Sphere, new Vector3(0f, 1.0f, 0.9f),  new Vector3(0.6f, 0.6f, 0.6f),  bearBrown), // 머리(둥금)
+                P(PrimitiveType.Cube,   new Vector3(0f, 0.9f, 1.2f),  new Vector3(0.28f, 0.25f, 0.3f), snout),     // 주둥이
+                P(PrimitiveType.Sphere, new Vector3(0.22f, 1.35f, 0.85f),  new Vector3(0.2f, 0.2f, 0.15f), bearBrown), // 귀
+                P(PrimitiveType.Sphere, new Vector3(-0.22f, 1.35f, 0.85f), new Vector3(0.2f, 0.2f, 0.15f), bearBrown),
+                // 다리 4 (두꺼움)
+                P(PrimitiveType.Cylinder, new Vector3(0.35f, 0.42f, 0.55f),  new Vector3(0.2f, 0.42f, 0.2f), darkBrown),
+                P(PrimitiveType.Cylinder, new Vector3(-0.35f, 0.42f, 0.55f), new Vector3(0.2f, 0.42f, 0.2f), darkBrown),
+                P(PrimitiveType.Cylinder, new Vector3(0.35f, 0.42f, -0.55f), new Vector3(0.2f, 0.42f, 0.2f), darkBrown),
+                P(PrimitiveType.Cylinder, new Vector3(-0.35f, 0.42f, -0.55f),new Vector3(0.2f, 0.42f, 0.2f), darkBrown),
+            };
+
             int n = 0;
             n += Rebuild("Assets/Prefabs/HuntTarget.prefab", elk) ? 1 : 0;
             n += Rebuild("Assets/Prefabs/HuntTarget_WildBoar.prefab", boar) ? 1 : 0;
+            n += Rebuild("Assets/Prefabs/HuntTarget_Bear.prefab", bear) ? 1 : 0;
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log($"[MakeAssets] 동물 플레이스홀더 비주얼 개선 완료 — {n}개 프리팹 (사슴/멧돼지)");
+            Debug.Log($"[MakeAssets] 동물 플레이스홀더 비주얼 개선 완료 — {n}개 프리팹 (사슴/멧돼지/곰)");
         }
 
         [MenuItem("Tools/Make Assets/Upgrade Placeholder Visuals (Estate)")]

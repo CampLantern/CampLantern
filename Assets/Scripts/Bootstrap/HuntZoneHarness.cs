@@ -22,13 +22,11 @@ namespace CampLantern.Bootstrap
     public class HuntZoneHarness : MonoBehaviour
     {
         [SerializeField] private SessionLauncher m_launcher;
-        [SerializeField] private NetworkObject m_huntTargetPrefab;
+        // 존에 등장하는 사냥감 종들 + 종별 스폰 위치(인덱스 매칭). 큰뿔사슴(협동)·멧돼지(솔로)·곰(협동) 등 N종.
+        [SerializeField] private NetworkObject[] m_huntPrefabs;
+        [SerializeField] private Vector3[] m_huntSpawnPositions;
         [SerializeField] private string m_lobbySceneName = "Lobby";
         [SerializeField] private string m_zoneId = "a";
-        [SerializeField] private Vector3 m_huntSpawnPos = new Vector3(0f, 0f, 5f);
-        // 추가 사냥감(예: 솔로 멧돼지) — 존에 큰뿔사슴과 함께 등장. 미할당이면 사슴만 스폰(기존 동작 유지).
-        [SerializeField] private NetworkObject m_extraHuntPrefab;
-        [SerializeField] private Vector3 m_extraHuntSpawnPos = new Vector3(6f, 0f, 5f);
         [SerializeField] private int m_hitDamage = 10;
 
         private PlayerState m_state;
@@ -121,11 +119,14 @@ namespace CampLantern.Bootstrap
 
         private void OnSessionStarted(NetworkRunner runner)
         {
-            if (!runner.IsSharedModeMasterClient) return; // 스폰은 마스터만
-            if (m_huntTargetPrefab != null)
-                runner.Spawn(m_huntTargetPrefab, m_huntSpawnPos, Quaternion.identity);
-            if (m_extraHuntPrefab != null)
-                runner.Spawn(m_extraHuntPrefab, m_extraHuntSpawnPos, Quaternion.identity);
+            if (!runner.IsSharedModeMasterClient || m_huntPrefabs == null) return; // 스폰은 마스터만
+            for (int i = 0; i < m_huntPrefabs.Length; i++)
+            {
+                if (m_huntPrefabs[i] == null) continue;
+                Vector3 pos = (m_huntSpawnPositions != null && i < m_huntSpawnPositions.Length)
+                    ? m_huntSpawnPositions[i] : Vector3.zero;
+                runner.Spawn(m_huntPrefabs[i], pos, Quaternion.identity);
+            }
         }
 
         private void HookHuntTarget(HuntTarget target)

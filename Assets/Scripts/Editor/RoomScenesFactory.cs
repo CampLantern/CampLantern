@@ -134,12 +134,7 @@ namespace CampLantern.EditorTools
             var harnessGo = new GameObject("HuntZoneHarness");
             var harness = harnessGo.AddComponent<HuntZoneHarness>();
             SetObjectRef(harness, "m_launcher", launcher);
-            SetObjectRef(harness, "m_huntTargetPrefab",
-                LoadRequired<GameObject>("Assets/Prefabs/HuntTarget.prefab").GetComponent<NetworkObject>());
-            // 추가 사냥감(멧돼지, 솔로) — 있으면 배선(없어도 사슴만으로 동작). 프리팹은 HuntTargetPrefabFactory 생성.
-            var boarPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/HuntTarget_WildBoar.prefab");
-            if (boarPrefab != null)
-                SetObjectRef(harness, "m_extraHuntPrefab", boarPrefab.GetComponent<NetworkObject>());
+            SetHuntPrefabs(harness); // 사슴+멧돼지+곰(존재하는 것) 배열 배선
             SetString(harness, "m_lobbySceneName", "Lobby");
             SetString(harness, "m_zoneId", "a");
 
@@ -236,23 +231,16 @@ namespace CampLantern.EditorTools
         }
 
         /// <summary>
-        /// 이미 생성된 HuntZone_A 씬의 HuntZoneHarness에 멧돼지(추가 사냥감) 프리팹을 배선한다.
-        /// CreateHuntZone은 씬이 있으면 early-return하므로 기존 씬 갱신용.
+        /// 이미 생성된 HuntZone_A 씬의 HuntZoneHarness에 사냥감(사슴/멧돼지/곰) 배열을 배선한다.
+        /// CreateHuntZone은 씬이 있으면 early-return하므로 기존 씬 갱신용. 새 종 프리팹을 추가하면 재실행.
         /// </summary>
-        [MenuItem("Tools/Make Assets/Wire Wild Boar Into Hunt Zone")]
-        public static void WireWildBoarIntoHuntZone()
+        [MenuItem("Tools/Make Assets/Wire Hunt Animals Into Hunt Zone")]
+        public static void WireHuntAnimalsIntoHuntZone()
         {
             const string scenePath = "Assets/Scenes/HuntZone_A.unity";
             if (AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) == null)
             {
                 Debug.LogError($"[MakeAssets] 씬 없음: {scenePath}");
-                return;
-            }
-
-            var boarPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/HuntTarget_WildBoar.prefab");
-            if (boarPrefab == null)
-            {
-                Debug.LogError("[MakeAssets] HuntTarget_WildBoar.prefab 없음 — 먼저 Tools > Make Assets > Hunt Target — Wild Boar 실행");
                 return;
             }
 
@@ -265,9 +253,52 @@ namespace CampLantern.EditorTools
                 return;
             }
 
-            SetObjectRef(harness, "m_extraHuntPrefab", boarPrefab.GetComponent<NetworkObject>());
+            SetHuntPrefabs(harness);
             EditorSceneManager.SaveScene(scene);
-            Debug.Log($"[MakeAssets] 멧돼지(추가 사냥감) 스폰 배선 완료: {scenePath}");
+            Debug.Log($"[MakeAssets] 사냥감 스폰 배선 완료: {scenePath}");
+        }
+
+        // 존에 등장할 사냥감 프리팹 + 스폰 위치. 존재하는 프리팹만 배열로 배선(엘크 필수, 멧돼지/곰 선택).
+        private static void SetHuntPrefabs(HuntZoneHarness harness)
+        {
+            string[] paths =
+            {
+                "Assets/Prefabs/HuntTarget.prefab",           // 큰뿔사슴(협동)
+                "Assets/Prefabs/HuntTarget_WildBoar.prefab",  // 멧돼지(솔로)
+                "Assets/Prefabs/HuntTarget_Bear.prefab",      // 곰(협동)
+            };
+            Vector3[] poses =
+            {
+                new Vector3(0f, 0f, 5f),
+                new Vector3(6f, 0f, 5f),
+                new Vector3(-6f, 0f, 5f),
+            };
+
+            var prefabs   = new List<NetworkObject>();
+            var positions = new List<Vector3>();
+            for (int i = 0; i < paths.Length; i++)
+            {
+                var go = AssetDatabase.LoadAssetAtPath<GameObject>(paths[i]);
+                var no = go != null ? go.GetComponent<NetworkObject>() : null;
+                if (no == null) continue;
+                prefabs.Add(no);
+                positions.Add(poses[i]);
+            }
+
+            SetObjectArray(harness, "m_huntPrefabs", prefabs.ToArray());
+            SetVector3Array(harness, "m_huntSpawnPositions", positions.ToArray());
+        }
+
+        private static void SetVector3Array(Component comp, string fieldName, Vector3[] values)
+        {
+            var so = new SerializedObject(comp);
+            var prop = so.FindProperty(fieldName);
+            if (prop == null)
+                throw new System.InvalidOperationException($"[MakeAssets] 필드 없음: {comp.GetType().Name}.{fieldName}");
+            prop.arraySize = values.Length;
+            for (int i = 0; i < values.Length; i++)
+                prop.GetArrayElementAtIndex(i).vector3Value = values[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         /// <summary>열린 씬에서 SessionLauncher를 가진 Network 오브젝트에 음성 + 아바타를 보장 배선. 변경 시 true.</summary>

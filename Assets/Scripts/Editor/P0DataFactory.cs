@@ -241,6 +241,32 @@ namespace CampLantern.EditorTools
                 so.RewardMaterials      = new ItemDef[] { boarHide, boarTusk };
             });
 
+            // ── 8. 곰 (대형 협동 사냥감) — 멧돼지보다 크고 큰뿔사슴급 협동. 보상 Rare ──
+            var bearHide = CreateOrLoad<ItemDef>("Assets/Data/Items/Item_BearHide.asset", so =>
+            {
+                so.Id          = "item_bear_hide";
+                so.DisplayName = "곰 가죽";
+                so.Rarity      = Rarity.Rare;
+                so.SellPrice   = 35;
+            });
+
+            var bearClaw = CreateOrLoad<ItemDef>("Assets/Data/Items/Item_BearClaw.asset", so =>
+            {
+                so.Id          = "item_bear_claw";
+                so.DisplayName = "곰 발톱";
+                so.Rarity      = Rarity.Rare;
+                so.SellPrice   = 40;
+            });
+
+            CreateOrLoad<HuntTargetDef>("Assets/Data/Hunt/Hunt_Bear.asset", so =>
+            {
+                so.Id                   = "hunt_bear";
+                so.DisplayName          = "곰";
+                so.MaxHealth            = 450;
+                so.RequiredParticipants = 2;
+                so.RewardMaterials      = new ItemDef[] { bearHide, bearClaw };
+            });
+
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 

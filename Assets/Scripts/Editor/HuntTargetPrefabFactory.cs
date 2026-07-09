@@ -37,6 +37,19 @@ namespace CampLantern.EditorTools
                 visualLocalPos: new Vector3(0f, 0.5f, 0f)); // 큐브(높이1)가 바닥에 놓이도록
         }
 
+        [MenuItem("Tools/Make Assets/Hunt Target — Bear")]
+        public static void CreateBear()
+        {
+            // 초기 플레이스홀더(단일). 실제 형태는 PlaceholderArtFactory.UpgradeAnimals가 다중 프리미티브로 교체.
+            CreateHuntTarget(
+                defPath:    "Assets/Data/Hunt/Hunt_Bear.asset",
+                prefabPath: k_folder + "/HuntTarget_Bear.prefab",
+                shape:      PrimitiveType.Cube,
+                color:      new Color(0.29f, 0.21f, 0.15f),
+                matName:    "Mat_HuntTarget_Bear",
+                visualLocalPos: new Vector3(0f, 0.6f, 0f));
+        }
+
         /// <summary>defPath의 HuntTargetDef를 물린 사냥감 프리팹을 만든다. 종 추가 시 이 메서드 재사용.</summary>
         public static void CreateHuntTarget(string defPath, string prefabPath, PrimitiveType shape,
                                             Color color, string matName, Vector3 visualLocalPos)

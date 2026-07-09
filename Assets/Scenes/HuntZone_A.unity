@@ -392,12 +392,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Bootstrap.HuntZoneHarness
   m_launcher: {fileID: 354026522}
-  m_huntTargetPrefab: {fileID: 5779601301368184608, guid: da32f26d713575b468171d808b58f1b2, type: 3}
+  m_huntPrefabs:
+  - {fileID: 5779601301368184608, guid: da32f26d713575b468171d808b58f1b2, type: 3}
+  - {fileID: 1471232871082996590, guid: 3de8dd550e959884dbd2db8b1c4304e4, type: 3}
+  - {fileID: 7030405325508519959, guid: ed7209db220148e4785f538295b2568d, type: 3}
+  m_huntSpawnPositions:
+  - {x: 0, y: 0, z: 5}
+  - {x: 6, y: 0, z: 5}
+  - {x: -6, y: 0, z: 5}
   m_lobbySceneName: Lobby
   m_zoneId: a
-  m_huntSpawnPos: {x: 0, y: 0, z: 5}
-  m_extraHuntPrefab: {fileID: 1471232871082996590, guid: 3de8dd550e959884dbd2db8b1c4304e4, type: 3}
-  m_extraHuntSpawnPos: {x: 6, y: 0, z: 5}
   m_hitDamage: 10
 --- !u!4 &1786569395
 Transform:
