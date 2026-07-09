@@ -6,6 +6,7 @@ using CampLantern.Core.Persistence;
 using CampLantern.Fishing;
 using CampLantern.Networking;
 using CampLantern.Networking.Voice;
+using CampLantern.UI;
 using Fusion;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -34,6 +35,7 @@ namespace CampLantern.Bootstrap
 
         private VoiceController m_voice;
         private PlayerMute m_mute;
+        private InventoryPanel m_inventoryPanel;
 
         private void Awake()
         {
@@ -47,6 +49,15 @@ namespace CampLantern.Bootstrap
             // 근접 음성 — Network 오브젝트(SessionLauncher와 같은 GO)에 배선됨. HuntZone과 동일 패턴.
             m_voice = m_launcher.GetComponent<VoiceController>();
             m_mute  = m_launcher.GetComponent<PlayerMute>();
+
+            // 월드스페이스 인벤토리 UI — 잡은 물고기가 아이콘으로 보인다. Resources 로드라 씬 배선 불필요.
+            var panelPrefab = Resources.Load<InventoryPanel>("InventoryPanel");
+            if (panelPrefab != null)
+            {
+                m_inventoryPanel = Instantiate(panelPrefab);
+                m_inventoryPanel.transform.SetPositionAndRotation(new Vector3(1.6f, 1.4f, 1.2f), Quaternion.Euler(0f, 210f, 0f));
+                m_inventoryPanel.Bind(m_state.Inventory);
+            }
 
             m_rod.FishCaught -= OnFishCaught;
             m_rod.FishCaught += OnFishCaught;
