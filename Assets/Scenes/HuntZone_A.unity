@@ -396,6 +396,8 @@ MonoBehaviour:
   m_lobbySceneName: Lobby
   m_zoneId: a
   m_huntSpawnPos: {x: 0, y: 0, z: 5}
+  m_extraHuntPrefab: {fileID: 1471232871082996590, guid: 3de8dd550e959884dbd2db8b1c4304e4, type: 3}
+  m_extraHuntSpawnPos: {x: 6, y: 0, z: 5}
   m_hitDamage: 10
 --- !u!4 &1786569395
 Transform:

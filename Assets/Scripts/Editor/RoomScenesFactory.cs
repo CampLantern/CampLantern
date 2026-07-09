@@ -136,6 +136,10 @@ namespace CampLantern.EditorTools
             SetObjectRef(harness, "m_launcher", launcher);
             SetObjectRef(harness, "m_huntTargetPrefab",
                 LoadRequired<GameObject>("Assets/Prefabs/HuntTarget.prefab").GetComponent<NetworkObject>());
+            // 추가 사냥감(멧돼지, 솔로) — 있으면 배선(없어도 사슴만으로 동작). 프리팹은 HuntTargetPrefabFactory 생성.
+            var boarPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/HuntTarget_WildBoar.prefab");
+            if (boarPrefab != null)
+                SetObjectRef(harness, "m_extraHuntPrefab", boarPrefab.GetComponent<NetworkObject>());
             SetString(harness, "m_lobbySceneName", "Lobby");
             SetString(harness, "m_zoneId", "a");
 
@@ -229,6 +233,41 @@ namespace CampLantern.EditorTools
                 }
             }
             Debug.Log($"[MakeAssets] 네트워크 소셜 스택 배선 완료 — {wired}개 씬 갱신");
+        }
+
+        /// <summary>
+        /// 이미 생성된 HuntZone_A 씬의 HuntZoneHarness에 멧돼지(추가 사냥감) 프리팹을 배선한다.
+        /// CreateHuntZone은 씬이 있으면 early-return하므로 기존 씬 갱신용.
+        /// </summary>
+        [MenuItem("Tools/Make Assets/Wire Wild Boar Into Hunt Zone")]
+        public static void WireWildBoarIntoHuntZone()
+        {
+            const string scenePath = "Assets/Scenes/HuntZone_A.unity";
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) == null)
+            {
+                Debug.LogError($"[MakeAssets] 씬 없음: {scenePath}");
+                return;
+            }
+
+            var boarPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/HuntTarget_WildBoar.prefab");
+            if (boarPrefab == null)
+            {
+                Debug.LogError("[MakeAssets] HuntTarget_WildBoar.prefab 없음 — 먼저 Tools > Make Assets > Hunt Target — Wild Boar 실행");
+                return;
+            }
+
+            EditorSceneManager.SaveOpenScenes();
+            Scene scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+            var harness = Object.FindFirstObjectByType<HuntZoneHarness>();
+            if (harness == null)
+            {
+                Debug.LogError($"[MakeAssets] {scenePath}에 HuntZoneHarness 없음");
+                return;
+            }
+
+            SetObjectRef(harness, "m_extraHuntPrefab", boarPrefab.GetComponent<NetworkObject>());
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log($"[MakeAssets] 멧돼지(추가 사냥감) 스폰 배선 완료: {scenePath}");
         }
 
         /// <summary>열린 씬에서 SessionLauncher를 가진 Network 오브젝트에 음성 + 아바타를 보장 배선. 변경 시 true.</summary>

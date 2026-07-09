@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bb4b17297140994d9e38283f256ac2c, type: 3}
+  m_Name: Hunt_WildBoar
+  m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Core.HuntTargetDef
+  Id: hunt_wild_boar
+  DisplayName: "\uBA67\uB3FC\uC9C0"
+  MaxHealth: 120
+  RequiredParticipants: 1
+  RewardMaterials:
+  - {fileID: 11400000, guid: 30933f461ca0601459bb084e5d1f3565, type: 2}
+  - {fileID: 11400000, guid: c16d05e16f0ddb648b928fadc4fff2ea, type: 2}

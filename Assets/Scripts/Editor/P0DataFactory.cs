@@ -213,6 +213,34 @@ namespace CampLantern.EditorTools
                 so.RewardMaterials      = new ItemDef[] { hide, antler };
             });
 
+            // ── 7. 멧돼지 (솔로 사냥감) — 큰뿔사슴(2인 협동)과 대비되는 1인 사냥감 ──
+            //    소형·솔로라 보상은 Common (economy: 협동 큰뿔사슴 Rare 재료보다 저가).
+            //    협동 필수는 '대형'만이라는 원칙(social-cooperation.md ②)에 맞춰 RequiredParticipants=1.
+            var boarHide = CreateOrLoad<ItemDef>("Assets/Data/Items/Item_BoarHide.asset", so =>
+            {
+                so.Id          = "item_boar_hide";
+                so.DisplayName = "멧돼지 가죽";
+                so.Rarity      = Rarity.Common;
+                so.SellPrice   = 15;
+            });
+
+            var boarTusk = CreateOrLoad<ItemDef>("Assets/Data/Items/Item_BoarTusk.asset", so =>
+            {
+                so.Id          = "item_boar_tusk";
+                so.DisplayName = "멧돼지 엄니";
+                so.Rarity      = Rarity.Common;
+                so.SellPrice   = 18;
+            });
+
+            CreateOrLoad<HuntTargetDef>("Assets/Data/Hunt/Hunt_WildBoar.asset", so =>
+            {
+                so.Id                   = "hunt_wild_boar";
+                so.DisplayName          = "멧돼지";
+                so.MaxHealth            = 120;
+                so.RequiredParticipants = 1;
+                so.RewardMaterials      = new ItemDef[] { boarHide, boarTusk };
+            });
+
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 

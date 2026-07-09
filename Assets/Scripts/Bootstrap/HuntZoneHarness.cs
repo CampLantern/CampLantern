@@ -26,6 +26,9 @@ namespace CampLantern.Bootstrap
         [SerializeField] private string m_lobbySceneName = "Lobby";
         [SerializeField] private string m_zoneId = "a";
         [SerializeField] private Vector3 m_huntSpawnPos = new Vector3(0f, 0f, 5f);
+        // 추가 사냥감(예: 솔로 멧돼지) — 존에 큰뿔사슴과 함께 등장. 미할당이면 사슴만 스폰(기존 동작 유지).
+        [SerializeField] private NetworkObject m_extraHuntPrefab;
+        [SerializeField] private Vector3 m_extraHuntSpawnPos = new Vector3(6f, 0f, 5f);
         [SerializeField] private int m_hitDamage = 10;
 
         private PlayerState m_state;
@@ -35,8 +38,8 @@ namespace CampLantern.Bootstrap
         private VoiceController m_voice;
         private PlayerMute m_mute;
 
-        private HuntTarget m_huntTarget;
-        private HuntLedger m_huntLedger;
+        private readonly List<HuntTarget> m_huntTargets = new List<HuntTarget>();        // 훅한 사냥감들(사슴+멧돼지)
+        private readonly HashSet<HuntLedger> m_hookedLedgers = new HashSet<HuntLedger>(); // 보상 중복 구독 방지
 
         private NetworkRunner m_dummyRunner;
         private bool m_dummyJoining;
@@ -63,7 +66,7 @@ namespace CampLantern.Bootstrap
         private void OnDestroy()
         {
             m_launcher.SessionStarted -= OnSessionStarted;
-            UnhookHuntTarget();
+            UnhookAllHuntTargets();
 
             if (m_dummyRunner != null && m_dummyRunner.IsRunning)
                 m_dummyRunner.Shutdown();
@@ -83,11 +86,13 @@ namespace CampLantern.Bootstrap
 
         private void Update()
         {
-            if (m_huntTarget == null && m_launcher.Runner != null)
-            {
-                HuntTarget target = FindHuntTarget(m_launcher.Runner);
-                if (target != null) HookHuntTarget(target);
-            }
+            if (m_launcher.Runner == null) return;
+
+            // 스폰된 사냥감을 모두 훅(사슴+멧돼지). 각 사냥감의 보상 이벤트를 1회씩 구독한다.
+            m_huntTargetsBuffer.Clear();
+            m_launcher.Runner.GetAllBehaviours(m_huntTargetsBuffer);
+            foreach (HuntTarget t in m_huntTargetsBuffer)
+                if (t != null && !m_huntTargets.Contains(t)) HookHuntTarget(t);
         }
 
         public HuntTarget FindHuntTarget(NetworkRunner runner)
@@ -98,28 +103,48 @@ namespace CampLantern.Bootstrap
             return m_huntTargetsBuffer.Count > 0 ? m_huntTargetsBuffer[0] : null;
         }
 
+        // 더미(2인 협동) 테스트용 — 협동 필수(2인+) 사냥감을 우선 선택. 없으면 첫 사냥감.
+        private HuntTarget FindCoopHuntTarget(NetworkRunner runner)
+        {
+            if (runner == null) return null;
+            m_huntTargetsBuffer.Clear();
+            runner.GetAllBehaviours(m_huntTargetsBuffer);
+            HuntTarget fallback = null;
+            foreach (HuntTarget t in m_huntTargetsBuffer)
+            {
+                if (t == null) continue;
+                if (fallback == null) fallback = t;
+                if (t.Def != null && t.Def.RequiredParticipants > 1) return t;
+            }
+            return fallback;
+        }
+
         private void OnSessionStarted(NetworkRunner runner)
         {
-            if (m_huntTargetPrefab != null && runner.IsSharedModeMasterClient)
+            if (!runner.IsSharedModeMasterClient) return; // 스폰은 마스터만
+            if (m_huntTargetPrefab != null)
                 runner.Spawn(m_huntTargetPrefab, m_huntSpawnPos, Quaternion.identity);
+            if (m_extraHuntPrefab != null)
+                runner.Spawn(m_extraHuntPrefab, m_extraHuntSpawnPos, Quaternion.identity);
         }
 
         private void HookHuntTarget(HuntTarget target)
         {
-            m_huntTarget = target;
-            m_huntLedger = target.GetComponent<HuntLedger>();
-            if (m_huntLedger != null)
+            m_huntTargets.Add(target);
+            var ledger = target.GetComponent<HuntLedger>();
+            if (ledger != null && m_hookedLedgers.Add(ledger))
             {
-                m_huntLedger.RewardGranted -= OnRewardGranted;
-                m_huntLedger.RewardGranted += OnRewardGranted;
+                ledger.RewardGranted -= OnRewardGranted;
+                ledger.RewardGranted += OnRewardGranted;
             }
         }
 
-        private void UnhookHuntTarget()
+        private void UnhookAllHuntTargets()
         {
-            if (m_huntLedger != null) m_huntLedger.RewardGranted -= OnRewardGranted;
-            m_huntTarget = null;
-            m_huntLedger = null;
+            foreach (HuntLedger ledger in m_hookedLedgers)
+                if (ledger != null) ledger.RewardGranted -= OnRewardGranted;
+            m_hookedLedgers.Clear();
+            m_huntTargets.Clear();
         }
 
         private void OnRewardGranted(HuntTargetDef def)
@@ -247,7 +272,7 @@ namespace CampLantern.Bootstrap
             {
                 GUILayout.BeginHorizontal();
                 GUILayout.Label($"더미: P{m_dummyRunner.LocalPlayer.PlayerId}", GUILayout.Width(80));
-                HuntTarget dummyTarget = FindHuntTarget(m_dummyRunner);
+                HuntTarget dummyTarget = FindCoopHuntTarget(m_dummyRunner); // 협동 대상(큰뿔사슴) 우선
                 if (dummyTarget != null)
                 {
                     if (GUILayout.Button("더미 타격"))
@@ -261,27 +286,34 @@ namespace CampLantern.Bootstrap
             }
 
             GUILayout.Space(8);
-            if (m_huntTarget == null)
+            m_huntTargets.RemoveAll(t => t == null || t.Object == null); // despawn된 사냥감 정리
+            if (m_huntTargets.Count == 0)
             {
                 GUILayout.Label("사냥감 스폰 대기 중...");
                 return;
             }
 
-            GUILayout.Label($"사냥감 HP: {m_huntTarget.CurrentHealth}  진행중: {m_huntTarget.HuntActive}");
-            GUILayout.BeginHorizontal();
-            if (m_huntTarget.Object.HasStateAuthority)
+            foreach (HuntTarget target in m_huntTargets)
             {
-                if (GUILayout.Button("사냥 시작"))
-                    m_lastLog = m_huntTarget.TryStartHunt() ? "사냥 시작!" : "시작 불가 (2인 미만)";
+                string targetName = target.Def != null ? target.Def.DisplayName : "사냥감";
+                int need = target.Def != null ? target.Def.RequiredParticipants : 1;
+                GUILayout.Label($"[{targetName}] HP: {target.CurrentHealth}  진행중: {target.HuntActive}  (필요 {need}인)");
+                GUILayout.BeginHorizontal();
+                if (target.Object.HasStateAuthority)
+                {
+                    if (GUILayout.Button("사냥 시작"))
+                        m_lastLog = target.TryStartHunt() ? $"{targetName} 사냥 시작!" : $"{targetName} 시작 불가 ({need}인 미만)";
+                }
+                else
+                {
+                    GUILayout.Label("(시작은 마스터만)", GUILayout.Width(110));
+                }
+                if (GUILayout.Button("타격")) target.ApplyHit(runner.LocalPlayer, m_hitDamage);
+                var ledger = target.GetComponent<HuntLedger>();
+                if (ledger != null && GUILayout.Button("유인(기여)"))
+                    ledger.RecordContribution(runner.LocalPlayer, HuntLedger.ContributionKind.Lure);
+                GUILayout.EndHorizontal();
             }
-            else
-            {
-                GUILayout.Label("(시작은 마스터만)", GUILayout.Width(110));
-            }
-            if (GUILayout.Button("타격")) m_huntTarget.ApplyHit(runner.LocalPlayer, m_hitDamage);
-            if (m_huntLedger != null && GUILayout.Button("유인(기여)"))
-                m_huntLedger.RecordContribution(runner.LocalPlayer, HuntLedger.ContributionKind.Lure);
-            GUILayout.EndHorizontal();
 
             GUILayout.Space(8);
             GUILayout.Label("── 인벤토리 ──");
