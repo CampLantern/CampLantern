@@ -173,36 +173,12 @@ namespace CampLantern.Fishing
         /// <summary>LEGACY 획득 이벤트 발화 헬퍼 (step-06에서 사용).</summary>
         protected void RaiseLegacyFishCaught(FishDef def) => FishCaught?.Invoke(def);
 
-        private Fish m_debugFish; // LEGACY Cast(spot)용 디버그 개체 — 재사용
-
-        /// <summary>
-        /// [LEGACY] 구 시그니처 캐스팅 — 스폿 어종 테이블에서 추첨해 디버그 물고기를 스폰 후 신 Cast로 위임.
-        /// 정식 타겟팅(TryGetNearestFish)은 step-08 스포너 개편에서.
-        /// </summary>
+        /// <summary>[LEGACY] 구 시그니처 캐스팅 — 스포너(step-08)의 최근접 개체 질의로 위임.</summary>
         [Obsolete("구 하네스 호환용 임시 — step-09에서 제거")]
         public void Cast(FishingSpot spot)
         {
-            if (spot == null) return;
-
-            FishDef def = spot.PickRandomFish();
-            FishSpeciesData species = FindSpecies(def != null ? def.Id : null);
-
-            if (m_debugFish == null)
-            {
-                var go = new GameObject("Fish_Debug");
-                go.transform.position = spot.transform.position;
-                var visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                visual.name = "Visual";
-                Destroy(visual.GetComponent<Collider>());
-                visual.transform.SetParent(go.transform, false);
-                visual.transform.localScale = Vector3.one * 0.3f;
-                m_debugFish = go.AddComponent<Fish>();
-            }
-
-            if (m_debugFish.State != FishState.Idle) return;
-            m_debugFish.transform.position = spot.transform.position;
-            m_debugFish.Initialize(FishInstance.Roll(species, UnityEngine.Random.value));
-            Cast(m_debugFish);
+            if (spot != null && spot.TryGetNearestFish(transform.position, m_rod.length, out Fish fish))
+                Cast(fish);
         }
 
         /// <summary>
@@ -232,13 +208,5 @@ namespace CampLantern.Fishing
             }
         }
 
-        private static FishSpeciesData FindSpecies(string fishId)
-        {
-            FishSpeciesData[] all = FishSpeciesTable.Species;
-            if (!string.IsNullOrEmpty(fishId))
-                foreach (FishSpeciesData s in all)
-                    if (s.fishId == fishId) return s;
-            return all[0];
-        }
     }
 }

@@ -15,6 +15,7 @@ namespace CampLantern.Fishing
     public class FishingRodInput : MonoBehaviour
     {
         [SerializeField] private FishingRod m_rod;
+        [SerializeField] private FishingSpot m_spot; // 캐스팅 타겟 질의 — 미할당이면 Awake에서 검색
         [SerializeField] private FishingTuning m_tuning = new FishingTuning();
         [SerializeField] private OVRInput.Controller m_controller = OVRInput.Controller.RTouch;
 
@@ -40,6 +41,12 @@ namespace CampLantern.Fishing
         private float m_cooldownUntil;
         private float m_castArmedUntil;
         private bool m_prevTriggerHeld;
+
+        private void Awake()
+        {
+            // 배선 누락 대비 — 코드로 확정 (rules/scripts.md)
+            if (m_spot == null) m_spot = FindFirstObjectByType<FishingSpot>();
+        }
 
         private void Update()
         {
@@ -143,9 +150,9 @@ namespace CampLantern.Fishing
 
         private void CastNearest()
         {
-            // TODO: step-08에서 FishingSpot.TryGetNearestFish(조준점, rod.length)로 교체 — 임시 최근접 검색
-            Fish target = FindFirstObjectByType<Fish>();
-            if (target != null) m_rod.Cast(target);
+            if (m_spot == null) return;
+            if (m_spot.TryGetNearestFish(m_rod.transform.position, m_rod.Rod.length, out Fish target))
+                m_rod.Cast(target);
         }
 
         // ── 햅틱: 줄 색 동기화 (§8) — 매 프레임 갱신(OVR 진동은 ~2초 자동 정지) ──
