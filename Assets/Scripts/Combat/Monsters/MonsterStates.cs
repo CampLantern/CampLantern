@@ -64,11 +64,16 @@ namespace CampLantern.Combat.Monsters
     /// </summary>
     public class ChaseState : IMonsterState
     {
+        // 판단 틱 주기 — 매 프레임 후보 계산 방지 (90Hz). TODO(TUNING)
+        private const float k_decisionInterval = 0.25f;
+        private float m_decisionTimer;
+
         public string Name => "Chase";
 
         public void Enter(MonsterController owner)
         {
             owner.Aggro?.AcquireIfNone(); // 초기 타겟 획득 — 유효타 트리거 밖의 최초 1회
+            m_decisionTimer = 0f;         // 진입 즉시 첫 판단
         }
 
         public void Tick(MonsterController owner, float deltaTime)
@@ -85,6 +90,26 @@ namespace CampLantern.Combat.Monsters
             if (target == null) target = nearest;
 
             owner.SetCurrentTarget(target);
+
+            // 스킬 판단 틱 (§4-7) — 후보 있음 → 균등 랜덤 시전 / 없음 + 사거리 내 → Exhausted / 밖 → 추격 유지
+            m_decisionTimer -= deltaTime;
+            if (m_decisionTimer <= 0f && owner.Skills != null && owner.Skills.SkillCount > 0)
+            {
+                m_decisionTimer = k_decisionInterval;
+                float dist = owner.PlanarDistanceTo(target.position);
+
+                if (owner.Skills.TrySelectSkill(dist, out int skillIndex))
+                {
+                    owner.TransitionTo(new AttackState(skillIndex));
+                    return;
+                }
+                if (owner.Skills.AnySkillReaches(dist))
+                {
+                    owner.TransitionTo(new ExhaustedState());
+                    return;
+                }
+            }
+
             owner.MoveTowards(target.position, owner.Data.chaseMoveSpeed);
         }
 

@@ -42,16 +42,45 @@ namespace CampLantern.Combat.Monsters
     }
 
     /// <summary>
-    /// 기절 오버레이 — **구조만** (지시서 3단계). 실구현(메인 타이머 정지·진행 중 공격 취소·해제 시 Chase 복귀,
-    /// Exhausted 위 적용)은 step-06에서. PausesMainState=true 골격만 확정해 둔다.
+    /// 기절 오버레이 — 실구현 (지시서 5단계).
+    /// 메인 상태 타이머 일시정지: PausesMainState=true → 메인 Tick이 멈춰 Attack 시전/Exhausted 타이머가
+    /// 함께 얼어붙는다 (오버레이 구조로 자동 충족). Exhausted 위에도 그대로 적용된다.
+    /// 진행 중 공격 취소: Apply 시점에 Attack이면 Chase로 전이 — Exit 경유로 판정이 무조건 Disable된다
+    /// (§4-6 안전장치 — 판정 잔류 방지). 해제 시 Chase 복귀 (지시서 명시 — Exhausted에서 걸렸어도 Chase로,
+    /// Chase가 즉시 재판단하므로 조건이 그대로면 다시 Exhausted).
+    /// 부여 주체(몬스터 스킬/상태이상)는 아직 없음 — MonsterController.ApplyStun(디버그/봇)으로 트리거.
     /// </summary>
     public class StunnedOverlay : IOverlayState
     {
+        private readonly float m_duration;
+        private float m_elapsed;
+
         public string Name => "Stunned";
         public bool PausesMainState => true;
 
-        public void Apply(MonsterController owner) { /* step-06: 공격 취소 훅 */ }
-        public void Tick(MonsterController owner, float deltaTime) { /* step-06: 지속시간·해제 */ }
-        public void Remove(MonsterController owner) { /* step-06: Chase 복귀 */ }
+        public StunnedOverlay(float durationSeconds)
+        {
+            m_duration = durationSeconds;
+        }
+
+        public void Apply(MonsterController owner)
+        {
+            // 진행 중 공격 취소 — TransitionTo가 Exit를 보장하므로 판정도 함께 꺼진다
+            if (owner.CurrentStateName.StartsWith("Attack"))
+                owner.TransitionTo(new ChaseState());
+        }
+
+        public void Tick(MonsterController owner, float deltaTime)
+        {
+            m_elapsed += deltaTime;
+            if (m_elapsed >= m_duration)
+                owner.RemoveOverlay(); // Remove → Chase 복귀
+        }
+
+        public void Remove(MonsterController owner)
+        {
+            if (owner.Health != null && owner.Health.CurrentHp > 0)
+                owner.TransitionTo(new ChaseState()); // 해제 시 Chase 복귀 (사망 시엔 복귀하지 않음)
+        }
     }
 }

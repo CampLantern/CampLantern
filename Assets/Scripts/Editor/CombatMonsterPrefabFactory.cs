@@ -68,9 +68,12 @@ namespace CampLantern.EditorTools
                 var controller = root.AddComponent<MonsterController>(); // RequireComponent가 MonsterHealth 선부착
                 var health = root.GetComponent<MonsterHealth>();
                 var aggro = root.AddComponent<AggroController>();        // step-05 — 어그로 6규칙
+                var skills = root.AddComponent<SkillRunner>();           // step-06 — 스킬 선택/쿨타임
+                root.AddComponent<SkillHitCheck>();                      // step-06 — hit window 판정
                 controller.Configure(data);
                 health.Configure(data);
                 aggro.Configure(data);
+                skills.Configure(data);
 
                 // 실제 아트 — 중첩 프리팹 연결 유지 (Animator+BearAnimator.controller 포함)
                 var visual = (GameObject)PrefabUtility.InstantiatePrefab(bearArt, root.transform);
@@ -121,6 +124,20 @@ namespace CampLantern.EditorTools
                     added++;
                 }
                 aggro.Configure(data); // 데이터 참조는 항상 재주입 (멱등)
+
+                var skills = root.GetComponent<SkillRunner>();           // step-06
+                if (skills == null)
+                {
+                    skills = root.AddComponent<SkillRunner>();
+                    added++;
+                }
+                skills.Configure(data);
+
+                if (root.GetComponent<SkillHitCheck>() == null)          // step-06
+                {
+                    root.AddComponent<SkillHitCheck>();
+                    added++;
+                }
 
                 PrefabUtility.SaveAsPrefabAsset(root, k_prefabPath);
                 Debug.Log($"[MakeAssets] CombatMonster_Bear ensure done (added {added})");

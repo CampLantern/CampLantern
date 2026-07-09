@@ -34,11 +34,21 @@ namespace CampLantern.Combat.Monsters
         private MonsterHealth m_health;
         private IMonsterState m_current;
         private IOverlayState m_overlay;
+        private AggroController m_aggro;
+        private SkillRunner m_skills;
+        private SkillHitCheck m_hitCheck;
 
         public MonsterData Data => m_data;
         public MonsterHealth Health => m_health;
+
+        // 형제 컴포넌트는 지연 해석 — 런타임 조립(봇/스포너)은 AddComponent 순서상 이 컨트롤러의
+        // Awake 시점에 아직 없을 수 있다 (step-02 Configure 교훈의 컴포넌트판). 캐시 후 재사용.
         /// <summary>어그로 컨트롤러 (step-05) — 없으면 null (상태들은 null-안전 폴백: 가장 가까운 플레이어).</summary>
-        public AggroController Aggro { get; private set; }
+        public AggroController Aggro => m_aggro != null ? m_aggro : (m_aggro = GetComponent<AggroController>());
+        /// <summary>스킬 실행기 (step-06) — 없으면 null (Chase는 추격만 하고 Attack/Exhausted 미진입).</summary>
+        public SkillRunner Skills => m_skills != null ? m_skills : (m_skills = GetComponent<SkillRunner>());
+        /// <summary>스킬 판정 실행기 (step-06) — Attack 상태가 창 개폐에 사용.</summary>
+        public SkillHitCheck HitCheck => m_hitCheck != null ? m_hitCheck : (m_hitCheck = GetComponent<SkillHitCheck>());
         public Vector3 SpawnPosition { get; private set; }
         public Transform CurrentTarget { get; private set; }
         public string CurrentStateName => m_stateName;
@@ -58,7 +68,6 @@ namespace CampLantern.Combat.Monsters
         private void Awake()
         {
             m_health = GetComponent<MonsterHealth>();
-            Aggro = GetComponent<AggroController>();
             SpawnPosition = transform.position;
 
             m_health.Died -= OnDied;
@@ -178,5 +187,16 @@ namespace CampLantern.Combat.Monsters
         {
             ApplyOverlay(new DeathOverlay());
         }
+
+        /// <summary>기절 부여 — 부여 주체(스킬/상태이상)는 미정, 디버그/봇/하네스 트리거용 (step-06).</summary>
+        public void ApplyStun(float durationSeconds)
+        {
+            ApplyOverlay(new StunnedOverlay(durationSeconds));
+        }
+
+#if UNITY_EDITOR
+        [ContextMenu("Debug — Stun 2s")]
+        private void DebugStun() => ApplyStun(2f);
+#endif
     }
 }
