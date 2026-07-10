@@ -132,6 +132,7 @@ GameObject:
   - component: {fileID: 354026524}
   - component: {fileID: 354026523}
   - component: {fileID: 354026526}
+  - component: {fileID: 354026527}
   m_Layer: 0
   m_Name: Network
   m_TagString: Untagged
@@ -205,6 +206,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Networking.Avatar.AvatarController
   m_avatarPrefab: {fileID: 2663442902015129799, guid: d32bfe77913d75d4f919b5c9ae778fa7, type: 3}
   m_presetAvatarCount: 6
+--- !u!114 &354026527
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 354026521}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ce26a78ebcf7784e93cc94e1233309e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Networking.CombatPlayerSpawner
+  m_launcher: {fileID: 354026522}
+  m_playerPrefab: {fileID: 8136980032208977453, guid: 9e6471d3a18e95d4eb8b7654ded4c8f4, type: 3}
+  m_wipeCheckInterval: 0.5
 --- !u!1 &1600878226
 GameObject:
   m_ObjectHideFlags: 0
