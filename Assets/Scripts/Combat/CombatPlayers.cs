@@ -36,7 +36,11 @@ namespace CampLantern.Combat
             s_players.Remove(player);
         }
 
-        /// <summary>가장 가까운 플레이어 (평면 거리). 파괴된 항목은 지나가며 정리한다.</summary>
+        /// <summary>
+        /// 가장 가까운 **타겟 가능** 플레이어 (평면 거리). 파괴된 항목은 지나가며 정리한다.
+        /// 다운된 플레이어(§2-2 피격 면제·행동 불능)는 타겟팅에서 제외 — PlayerHealth 미부착(봇 마커)은 항상 대상.
+        /// 호출 빈도가 낮아(감지 체크·유효타 트리거·판단 틱) GetComponentInParent 비용 허용.
+        /// </summary>
         public static Transform FindNearest(Vector3 from)
         {
             Transform nearest = null;
@@ -46,6 +50,9 @@ namespace CampLantern.Combat
             {
                 Transform t = s_players[i];
                 if (t == null) { s_players.RemoveAt(i); continue; }
+
+                var health = t.GetComponentInParent<Player.PlayerHealth>();
+                if (health != null && health.IsDowned) continue; // 다운 — 타겟 제외
 
                 Vector3 to = t.position - from;
                 to.y = 0f;

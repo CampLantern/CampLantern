@@ -51,11 +51,21 @@ namespace CampLantern.Combat.Monsters
 
             m_health.Damaged -= OnDamaged;
             m_health.Damaged += OnDamaged;
+
+            // 타겟 다운 시 즉시 재계산 (규칙 6 후반) — step-09 다운 시스템의 전역 이벤트 구독
+            Player.PlayerHealth.AnyPlayerDowned -= OnAnyPlayerDowned;
+            Player.PlayerHealth.AnyPlayerDowned += OnAnyPlayerDowned;
         }
 
         private void OnDestroy()
         {
             if (m_health != null) m_health.Damaged -= OnDamaged;
+            Player.PlayerHealth.AnyPlayerDowned -= OnAnyPlayerDowned;
+        }
+
+        private void OnAnyPlayerDowned(Player.PlayerHealth player)
+        {
+            NotifyTargetDowned(player.gameObject);
         }
 
         private void Update()

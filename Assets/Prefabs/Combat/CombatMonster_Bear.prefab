@@ -53,6 +53,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Combat.Monsters.MonsterHealth
   m_data: {fileID: 11400000, guid: 927e1355852bc6f4d827f50473a6ff30, type: 2}
+  m_balance: {fileID: 11400000, guid: 77ea04bc10f006f41b2d8e02e4048230, type: 2}
 --- !u!114 &4468462031971998791
 MonoBehaviour:
   m_ObjectHideFlags: 0

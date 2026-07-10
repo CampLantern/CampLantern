@@ -42,5 +42,15 @@ namespace CampLantern.Combat.Data
 
         [Tooltip("부활 시 HP 비율")]
         [Range(0f, 1f)] public float reviveHpRatio = 0.5f;
+
+        [Header("디버프 (§2-2) — 미사용 - 추후")]
+        [Tooltip("기절 지속(초) — TODO(SPEC): 부여 주체(몬스터 스킬 상태이상) 미정, 자리만")]
+        public float debuffStunSeconds = 2f;
+        [Tooltip("독 틱 데미지 — TODO(SPEC)")]
+        public int debuffPoisonDamagePerTick = 2;
+        [Tooltip("독 틱 간격(초) — TODO(SPEC)")]
+        public float debuffPoisonTickSeconds = 1f;
+        [Tooltip("독 지속(초) — TODO(SPEC)")]
+        public float debuffPoisonDurationSeconds = 5f;
     }
 }

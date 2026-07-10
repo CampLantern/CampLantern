@@ -71,7 +71,8 @@ namespace CampLantern.EditorTools
                 var skills = root.AddComponent<SkillRunner>();           // step-06 — 스킬 선택/쿨타임
                 root.AddComponent<SkillHitCheck>();                      // step-06 — hit window 판정
                 controller.Configure(data);
-                health.Configure(data);
+                health.Configure(data,
+                    AssetDatabase.LoadAssetAtPath<CombatBalanceData>("Assets/Data/Combat/CombatBalance.asset")); // §4-2 스케일링
                 aggro.Configure(data);
                 skills.Configure(data);
 
@@ -116,6 +117,9 @@ namespace CampLantern.EditorTools
             try
             {
                 int added = 0;
+
+                var balance = AssetDatabase.LoadAssetAtPath<CombatBalanceData>("Assets/Data/Combat/CombatBalance.asset");
+                root.GetComponent<MonsterHealth>().Configure(data, balance); // step-09 — HP 스케일링 계수 주입
 
                 var aggro = root.GetComponent<AggroController>();
                 if (aggro == null)
