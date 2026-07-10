@@ -22,6 +22,8 @@ namespace CampLantern.Combat.Weapons
         [SerializeField] private GameObject m_arrowPrefab;
         [Tooltip("발사 기준점 — 위치·전방(forward)")]
         [SerializeField] private Transform m_arrowOrigin;
+        [Tooltip("사냥터 씬에서만 발사 허용 (§1-6, 씬 이름 기반 임시). 프리팹 true, 런타임 조립 기본 false")]
+        [SerializeField] private bool m_requireCombatScene;
 
         public BowData Data => m_data;
         public int CurrentDurability { get; private set; }
@@ -62,9 +64,24 @@ namespace CampLantern.Combat.Weapons
             DrawRatio = Mathf.Clamp01(ratio);
         }
 
-        /// <summary>발사 — 소지 0/파손/미배선이면 false. 성공 시 소지 -1, 내구도 -1.</summary>
+        /// <summary>씬 제한 토글 — 팩토리(프리팹 true)/하네스 설정용.</summary>
+        public bool RequireCombatScene
+        {
+            get => m_requireCombatScene;
+            set => m_requireCombatScene = value;
+        }
+
+        /// <summary>내구도 전량 복구 — Blacksmith 수리 (§1-5).</summary>
+        public void RepairFull()
+        {
+            if (m_data != null) CurrentDurability = m_data.maxDurability;
+        }
+
+        /// <summary>발사 — 소지 0/파손/미배선/씬 제한이면 false. 성공 시 소지 -1, 내구도 -1.</summary>
         public bool TryFire()
         {
+            if (m_requireCombatScene && !CombatScenes.IsCombatScene())
+                return false; // 무기 활성화는 사냥터 씬에서만 (§1-6)
             if (IsBroken || m_data == null || m_balance == null || m_arrowPrefab == null || m_arrowOrigin == null)
                 return false;
             if (Quiver == null || !Quiver.TryConsume())

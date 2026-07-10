@@ -178,6 +178,7 @@ MonoBehaviour:
   m_balance: {fileID: 11400000, guid: 77ea04bc10f006f41b2d8e02e4048230, type: 2}
   m_arrowPrefab: {fileID: 7542775084259010045, guid: dc9a15413cf202f46938145b58b7306d, type: 3}
   m_arrowOrigin: {fileID: 1529614586363529895}
+  m_requireCombatScene: 1
 --- !u!1001 &4571056529718036119
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -45,6 +45,9 @@ namespace CampLantern.Combat.Weapons
         [SerializeField] private float m_teleportSpeedThreshold = 25f;
         [Tooltip("현재 상태 (인스펙터 확인용)")]
         [SerializeField] private string m_stateName = nameof(StrikeState.Idle);
+        [Tooltip("사냥터 씬에서만 판정 활성 (§1-6, 씬 이름 기반 임시 — CombatScenes 주석 참조). " +
+                 "프리팹은 true, 런타임 조립(봇)은 기본 false")]
+        [SerializeField] private bool m_requireCombatScene;
 
         public MeleeWeaponData Data => m_data;
         public int CurrentDurability { get; private set; }
@@ -105,9 +108,23 @@ namespace CampLantern.Combat.Weapons
             m_tipSpeed = 0f;
         }
 
+        /// <summary>씬 제한 토글 — 팩토리(프리팹 true)/하네스 설정용.</summary>
+        public bool RequireCombatScene
+        {
+            get => m_requireCombatScene;
+            set => m_requireCombatScene = value;
+        }
+
+        /// <summary>내구도 전량 복구 — Blacksmith 수리 (§1-5).</summary>
+        public void RepairFull()
+        {
+            if (m_data != null) CurrentDurability = m_data.maxDurability;
+        }
+
         private void Update()
         {
             if (m_data == null || m_hitRefBase == null || m_hitRefTip == null) return;
+            if (m_requireCombatScene && !CombatScenes.IsCombatScene()) return; // 무기 활성화는 사냥터 씬에서만 (§1-6)
 
             Vector3 basePos = m_hitRefBase.position;
             Vector3 tipPos  = m_hitRefTip.position;

@@ -94,6 +94,7 @@ namespace CampLantern.EditorTools
                 var bow = bowRoot.GetComponent<Bow>();
                 if (bow == null) bow = bowRoot.AddComponent<Bow>();
                 bow.Configure(bowData, balance, arrowPrefabAsset, origin);
+                bow.RequireCombatScene = true; // 프리팹 무기는 사냥터 씬 제한 (§1-6)
                 PrefabUtility.SaveAsPrefabAsset(bowRoot, bowPath);
                 Debug.Log($"[MakeAssets] bow wired: {bowPath} (arrow={arrowPrefabAsset.name})");
             }
@@ -134,6 +135,7 @@ namespace CampLantern.EditorTools
                 var weapon = root.GetComponent<MeleeWeapon>();
                 if (weapon == null) weapon = root.AddComponent<MeleeWeapon>();
                 weapon.Configure(data, hitBase, hitTip);
+                weapon.RequireCombatScene = true; // 프리팹 무기는 사냥터 씬 제한 (§1-6)
 
                 PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
                 Debug.Log($"[MakeAssets] melee wired: {prefabPath} (data={data.name}, kind={data.kind})");

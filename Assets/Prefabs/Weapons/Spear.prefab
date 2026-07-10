@@ -180,7 +180,10 @@ MonoBehaviour:
   m_hitRefTip: {fileID: 3207384137644174799}
   m_bladeRadius: 0.03
   m_sweepSamples: 4
+  m_teleportThreshold: 1
+  m_teleportSpeedThreshold: 25
   m_stateName: Idle
+  m_requireCombatScene: 1
 --- !u!1 &3525293829970601137
 GameObject:
   m_ObjectHideFlags: 0
