@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CampLantern.Core;
 using UnityEngine;
 
 namespace CampLantern.Combat.Data
@@ -44,5 +45,11 @@ namespace CampLantern.Combat.Data
 
         [Header("스킬 (§4-5)")]
         public List<SkillItem> skills;
+
+        [Header("사냥 통합 (combat-detailed-network)")]
+        [Tooltip("보상(RewardMaterials)·필요 인원(RequiredParticipants)·저장 Id는 HuntTargetDef 소관 — " +
+                 "전투 스탯만 MonsterData. null이면 순수 로컬 몬스터. " +
+                 "HuntTargetDef.MaxHealth는 구 HuntTarget 라인 전용(중복 정리는 정식 스키마 때 — TODO(SPEC))")]
+        public HuntTargetDef huntDef;
     }
 }

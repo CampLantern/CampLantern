@@ -20,11 +20,22 @@ namespace CampLantern.Combat
         [SerializeField] private bool m_isWeakpoint;
 
         private IDamageable m_owner;
+        private IDamageable m_ownerOverride;
 
         public bool IsWeakpoint => m_isWeakpoint;
 
-        /// <summary>이 볼륨의 데미지 수신자 — 부모 계층에서 IDamageable을 찾는다 (Awake 캐싱).</summary>
-        public IDamageable Owner => m_owner;
+        /// <summary>
+        /// 이 볼륨의 데미지 수신자 — 기본은 부모 계층의 IDamageable (Awake 캐싱).
+        /// OverrideOwner가 지정되면 그쪽 우선 — 같은 GO에 IDamageable이 복수일 때(네트워크 라우터 +
+        /// MonsterHealth, combat-detailed-network step-01) 수신자를 명시한다.
+        /// </summary>
+        public IDamageable Owner => m_ownerOverride ?? m_owner;
+
+        /// <summary>수신자 명시 지정 — null이면 기본 해석 복귀 (로컬 폴백 불변).</summary>
+        public void OverrideOwner(IDamageable owner)
+        {
+            m_ownerOverride = owner;
+        }
 
         /// <summary>Editor 팩토리/런타임 조립용 — 직렬화 필드 주입.</summary>
         public void Configure(bool isWeakpoint)
