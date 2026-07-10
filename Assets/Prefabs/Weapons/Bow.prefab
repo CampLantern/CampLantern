@@ -1,5 +1,36 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &498879719317000003
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1529614586363529895}
+  m_Layer: 0
+  m_Name: ArrowOrigin
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1529614586363529895
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 498879719317000003}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0.2}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4091388205535080097}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5561545779865012900
 GameObject:
   m_ObjectHideFlags: 0
@@ -13,6 +44,7 @@ GameObject:
   - component: {fileID: 2350027057196010172}
   - component: {fileID: 4317765652874863285}
   - component: {fileID: 6732825897266270208}
+  - component: {fileID: 78358811816338488}
   m_Layer: 0
   m_Name: Bow
   m_TagString: Untagged
@@ -34,6 +66,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4575601931877639383}
+  - {fileID: 1529614586363529895}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!54 &7786835502793009902
@@ -129,6 +162,22 @@ MonoBehaviour:
   _useClosestPointAsGrabSource: 0
   _releaseDistance: 0
   _resetGrabOnGrabsUpdated: 1
+--- !u!114 &78358811816338488
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5561545779865012900}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22dff5182ab47d14c92bb4d418f9dbd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Combat.Weapons.Bow
+  m_data: {fileID: 11400000, guid: 87260630b69ed624e85f9dc954a5a7fe, type: 2}
+  m_balance: {fileID: 11400000, guid: 77ea04bc10f006f41b2d8e02e4048230, type: 2}
+  m_arrowPrefab: {fileID: 7542775084259010045, guid: dc9a15413cf202f46938145b58b7306d, type: 3}
+  m_arrowOrigin: {fileID: 1529614586363529895}
 --- !u!1001 &4571056529718036119
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -37,6 +37,71 @@ namespace CampLantern.EditorTools
             AssetDatabase.SaveAssets();
         }
 
+        /// <summary>
+        /// Bow/Arrow 프리팹 전투 배선 (step-08). Arrow 먼저(Bow가 프리팹 에셋을 참조), 멱등.
+        /// ArrowQuiver는 프리팹이 아니라 플레이어 측 런타임 주입(Bow.Quiver) — 하네스(step-11)/홀스터(step-10) 소관.
+        /// VR 양손 당김(시위 손-그립 거리 → SetDrawRatio)·시위 비주얼·화살집 배선은 수동 작업 체크리스트.
+        /// </summary>
+        [MenuItem("Tools/Make Assets/Combat — Wire Bow & Arrow")]
+        public static void WireBowAndArrow()
+        {
+            string arrowPath = k_weaponFolder + "/Arrow.prefab";
+            string bowPath = k_weaponFolder + "/Bow.prefab";
+
+            var arrowData = AssetDatabase.LoadAssetAtPath<ArrowData>(k_dataFolder + "/Arrow_Basic.asset");
+            var bowData = AssetDatabase.LoadAssetAtPath<BowData>(k_dataFolder + "/Bow_Wooden.asset");
+            var balance = AssetDatabase.LoadAssetAtPath<CombatBalanceData>(k_dataFolder + "/CombatBalance.asset");
+            if (arrowData == null || bowData == null || balance == null)
+            {
+                Debug.LogError("[MakeAssets] 활/화살 데이터 없음 — 먼저 Tools > Make Assets > Combat Data (Create All)");
+                return;
+            }
+
+            // ── Arrow.prefab ──
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(arrowPath) == null)
+            {
+                Debug.LogError($"[MakeAssets] 화살 프리팹 없음: {arrowPath} — 먼저 Weapons (Create All)");
+                return;
+            }
+            GameObject arrowRoot = PrefabUtility.LoadPrefabContents(arrowPath);
+            try
+            {
+                var arrow = arrowRoot.GetComponent<Arrow>();
+                if (arrow == null) arrow = arrowRoot.AddComponent<Arrow>();
+                arrow.Configure(arrowData, balance);
+                PrefabUtility.SaveAsPrefabAsset(arrowRoot, arrowPath);
+                Debug.Log($"[MakeAssets] arrow wired: {arrowPath}");
+            }
+            finally { PrefabUtility.UnloadPrefabContents(arrowRoot); }
+
+            // ── Bow.prefab ──
+            var arrowPrefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(arrowPath);
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(bowPath) == null)
+            {
+                Debug.LogError($"[MakeAssets] 활 프리팹 없음: {bowPath} — 먼저 Weapons (Create All)");
+                return;
+            }
+            GameObject bowRoot = PrefabUtility.LoadPrefabContents(bowPath);
+            try
+            {
+                Transform origin = bowRoot.transform.Find("ArrowOrigin");
+                if (origin == null)
+                {
+                    origin = CreateChildAt(bowRoot.transform, "ArrowOrigin", new Vector3(0f, 0f, 0.2f));
+                    Debug.LogWarning("[MakeAssets] Bow ArrowOrigin을 기본 위치에 생성 — 그립/시위에 맞게 씬에서 조정 필요 (조정값 보존)");
+                }
+
+                var bow = bowRoot.GetComponent<Bow>();
+                if (bow == null) bow = bowRoot.AddComponent<Bow>();
+                bow.Configure(bowData, balance, arrowPrefabAsset, origin);
+                PrefabUtility.SaveAsPrefabAsset(bowRoot, bowPath);
+                Debug.Log($"[MakeAssets] bow wired: {bowPath} (arrow={arrowPrefabAsset.name})");
+            }
+            finally { PrefabUtility.UnloadPrefabContents(bowRoot); }
+
+            AssetDatabase.SaveAssets();
+        }
+
         private static void WireOne(string prefabPath, string dataPath)
         {
             var prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);

@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 2621718734081314688}
   - component: {fileID: 2556130328703432915}
   - component: {fileID: 294389805593208250}
+  - component: {fileID: 8810059777851368086}
   m_Layer: 0
   m_Name: Arrow
   m_TagString: Untagged
@@ -129,6 +130,22 @@ MonoBehaviour:
   _useClosestPointAsGrabSource: 0
   _releaseDistance: 0
   _resetGrabOnGrabsUpdated: 1
+--- !u!114 &8810059777851368086
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7542775084259010045}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5118fd6e7c0305a4392b731dc2767bb8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Combat.Weapons.Arrow
+  m_data: {fileID: 11400000, guid: 20606b67b992ead429c67f50bb5e7de2, type: 2}
+  m_balance: {fileID: 11400000, guid: 77ea04bc10f006f41b2d8e02e4048230, type: 2}
+  m_sweepRadius: 0.02
+  m_maxLifetime: 10
 --- !u!1001 &1627027180575574672
 PrefabInstance:
   m_ObjectHideFlags: 0
