@@ -279,6 +279,25 @@ async Task LoadAsync(CancellationToken ct)
 - Unity에서는 `async Task` 보다 **UniTask** (`Cysharp.Threading.Tasks`)가 권장 — zero allocation, PlayerLoop 통합.
 - Play Mode 종료 후에도 돌아가는 async는 `NullReferenceException` 폭주의 주범 → cancellation 필수.
 
+### fire-and-forget Task의 예외는 소리 없이 사라진다
+
+`_ = SomeAsync();`로 버린 Task의 예외는 어디에도 로깅되지 않는다(무관찰 예외 — `UnobservedTaskException`은
+파이널라이저 시점에나, Unity에선 그마저 기본 무음). "호출은 성공했는데 아무 일도 안 일어나는" 증상이 된다.
+fire-and-forget이 필요하면 `async void` + 전체 try/catch(`Debug.LogException`)로 감싼다.
+디버깅 비용이 로깅 한 줄보다 훨씬 크다 (실측 2026-07-10: 세션 접속 헬퍼의 무음 실패).
+
+```csharp
+// ✅ 권장 — 예외가 반드시 로그에 남는다
+public static async void JoinAndLog()
+{
+    try { await launcher.StartSession("room", ct); }
+    catch (Exception e) { Debug.LogException(e); }
+}
+
+// ❌ 금지 — 예외가 무관찰로 소멸
+_ = launcher.StartSession("room", ct);
+```
+
 ---
 
 ## 13. Interfaces
