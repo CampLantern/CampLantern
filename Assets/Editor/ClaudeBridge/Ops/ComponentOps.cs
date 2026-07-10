@@ -168,7 +168,8 @@ namespace Project.Editor.ClaudeBridge.Ops
                 }
                 if (refSpec.instanceId != 0)
                 {
-                    var obj = EditorUtility.InstanceIDToObject(refSpec.instanceId);
+                    // Unity 6: InstanceIDToObject(int) 폐기 → EntityIdToObject (EntityId는 int에서 암시 변환)
+                    var obj = EditorUtility.EntityIdToObject(refSpec.instanceId);
                     if (obj == null) throw new ArgumentException($"Instance not found: {refSpec.instanceId}");
                     return obj;
                 }

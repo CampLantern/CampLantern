@@ -33,7 +33,8 @@ namespace Project.Editor.ClaudeBridge.Ops
             {
                 if (!int.TryParse(a.targetInstanceId, out var iid) || iid == 0)
                     throw new ArgumentException("Non-static method requires targetInstanceId");
-                target = EditorUtility.InstanceIDToObject(iid)
+                // Unity 6: InstanceIDToObject(int) 폐기 → EntityIdToObject (EntityId는 int에서 암시 변환)
+                target = EditorUtility.EntityIdToObject(iid)
                          ?? throw new ArgumentException($"Instance not found: {iid}");
             }
 
