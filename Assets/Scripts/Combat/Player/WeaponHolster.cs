@@ -33,6 +33,8 @@ namespace CampLantern.Combat.Player
         [SerializeField] private bool m_rightHanded = true;
 
         private readonly GameObject[] m_stowed = new GameObject[3];
+        private readonly System.Collections.Generic.List<MeleeWeapon> m_registeredMelee = new System.Collections.Generic.List<MeleeWeapon>();
+        private readonly System.Collections.Generic.List<Bow> m_registeredBows = new System.Collections.Generic.List<Bow>();
 
         /// <summary>파손 무기 강제 귀환 발생 — (무기 루트, 슬롯). UI/사운드 훅.</summary>
         public event Action<GameObject, HolsterSlot> BrokenWeaponReturned;
@@ -74,21 +76,43 @@ namespace CampLantern.Combat.Player
             return true;
         }
 
-        /// <summary>파손 무기 자동 귀환 구독 (§1-5). 구독 해제는 UnregisterWeapon/OnDestroy.</summary>
+        /// <summary>파손 무기 자동 귀환 구독 (§1-5). 구독 해제는 UnregisterWeapon/OnDestroy(일괄).</summary>
         public void RegisterWeapon(MeleeWeapon melee)
         {
             melee.WeaponBroken -= OnMeleeBroken;
             melee.WeaponBroken += OnMeleeBroken;
+            if (!m_registeredMelee.Contains(melee)) m_registeredMelee.Add(melee);
         }
 
         public void RegisterWeapon(Bow bow)
         {
             bow.WeaponBroken -= OnBowBroken;
             bow.WeaponBroken += OnBowBroken;
+            if (!m_registeredBows.Contains(bow)) m_registeredBows.Add(bow);
         }
 
-        public void UnregisterWeapon(MeleeWeapon melee) => melee.WeaponBroken -= OnMeleeBroken;
-        public void UnregisterWeapon(Bow bow) => bow.WeaponBroken -= OnBowBroken;
+        public void UnregisterWeapon(MeleeWeapon melee)
+        {
+            melee.WeaponBroken -= OnMeleeBroken;
+            m_registeredMelee.Remove(melee);
+        }
+
+        public void UnregisterWeapon(Bow bow)
+        {
+            bow.WeaponBroken -= OnBowBroken;
+            m_registeredBows.Remove(bow);
+        }
+
+        private void OnDestroy()
+        {
+            // 구독 잔존 방지 — 파괴된 홀스터의 핸들러가 무기 파손 이벤트로 호출되는 것 차단 (rules/scripts.md)
+            foreach (var melee in m_registeredMelee)
+                if (melee != null) melee.WeaponBroken -= OnMeleeBroken;
+            foreach (var bow in m_registeredBows)
+                if (bow != null) bow.WeaponBroken -= OnBowBroken;
+            m_registeredMelee.Clear();
+            m_registeredBows.Clear();
+        }
 
         private void OnMeleeBroken(MeleeWeapon weapon) => ForceReturn(weapon.gameObject, weapon.Data != null ? weapon.Data.kind : WeaponKind.Sword);
         private void OnBowBroken(Bow bow) => ForceReturn(bow.gameObject, WeaponKind.Bow);

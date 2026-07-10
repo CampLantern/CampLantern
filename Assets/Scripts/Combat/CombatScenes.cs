@@ -11,8 +11,15 @@ namespace CampLantern.Combat
     {
         private static readonly string[] k_combatSceneNames = { "HuntZone_A", "CombatSandbox" };
 
-        // 테스트 심 — 검증 봇이 활성 씬과 무관하게 게이트 분기를 검증할 때만 사용
+        // 테스트 심 — 검증 봇이 활성 씬과 무관하게 게이트 분기를 검증할 때만 사용.
+        // RULE-01: Domain Reload 비활성 — 봇이 복원을 못 한 채 죽어도 다음 플레이에 잔존하지 않도록 초기화.
         private static bool? s_testOverride;
+
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_testOverride = null;
+        }
 
         public static bool IsCombatScene()
         {
