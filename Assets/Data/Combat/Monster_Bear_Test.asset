@@ -43,3 +43,4 @@ MonoBehaviour:
     castHeight: 0
     beamWidth: 0
     statusEffectId: 
+  huntDef: {fileID: 11400000, guid: 213737ca3b17b214b8f8a0a9e60b7fd2, type: 2}

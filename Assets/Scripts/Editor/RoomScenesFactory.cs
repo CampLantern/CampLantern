@@ -270,12 +270,14 @@ namespace CampLantern.EditorTools
                 "Assets/Prefabs/HuntTarget.prefab",           // 큰뿔사슴(협동)
                 "Assets/Prefabs/HuntTarget_WildBoar.prefab",  // 멧돼지(솔로)
                 "Assets/Prefabs/HuntTarget_Bear.prefab",      // 곰(협동)
+                "Assets/Prefabs/HuntMonster_Bear.prefab",     // 전투 곰(네트워크판, combat-detailed-network) — 기존 3종과 병행 검증
             };
             Vector3[] poses =
             {
                 new Vector3(0f, 0f, 5f),
                 new Vector3(6f, 0f, 5f),
                 new Vector3(-6f, 0f, 5f),
+                new Vector3(0f, 0f, 12f),
             };
 
             var prefabs   = new List<NetworkObject>();

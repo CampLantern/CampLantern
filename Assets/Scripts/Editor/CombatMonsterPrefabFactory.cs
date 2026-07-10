@@ -191,7 +191,8 @@ namespace CampLantern.EditorTools
         }
 
         // Bear_Attack1 클립 로드 — FBX 서브에셋에서 프리뷰 제외 첫 AnimationClip
-        private static AnimationClip[] LoadBearAttackClips()
+        // internal: NetworkedHuntMonsterFactory가 재사용.
+        internal static AnimationClip[] LoadBearAttackClips()
         {
             const string path = "Assets/BlinkAnimals/Bear/Animations/Bear_Attack1.fbx";
             foreach (Object sub in AssetDatabase.LoadAllAssetsAtPath(path))
@@ -203,7 +204,8 @@ namespace CampLantern.EditorTools
         }
 
         // 피격 볼륨: 몸통 = 합산 바운즈 박스(90%), 머리 = 최장 수평축 끝·상단의 구 (휴리스틱 — 육안 확인 필요)
-        private static void AddHitVolumes(GameObject root)
+        // internal: NetworkedHuntMonsterFactory(네트워크판 곰)가 동일 조립을 재사용한다.
+        internal static void AddHitVolumes(GameObject root)
         {
             if (!EditorMeshBounds.TryComputeCombined(root, out Bounds bounds))
             {

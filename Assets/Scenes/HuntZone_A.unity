@@ -396,10 +396,12 @@ MonoBehaviour:
   - {fileID: 5779601301368184608, guid: da32f26d713575b468171d808b58f1b2, type: 3}
   - {fileID: 1471232871082996590, guid: 3de8dd550e959884dbd2db8b1c4304e4, type: 3}
   - {fileID: 7030405325508519959, guid: ed7209db220148e4785f538295b2568d, type: 3}
+  - {fileID: 1329393845657792093, guid: afd566cfdc38bd94bb1e2af8ea15d483, type: 3}
   m_huntSpawnPositions:
   - {x: 0, y: 0, z: 5}
   - {x: 6, y: 0, z: 5}
   - {x: -6, y: 0, z: 5}
+  - {x: 0, y: 0, z: 12}
   m_lobbySceneName: Lobby
   m_zoneId: a
   m_hitDamage: 10
