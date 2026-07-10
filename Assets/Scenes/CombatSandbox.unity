@@ -499,6 +499,52 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 31ae77a1254eb1b428b7a24d75cf96fd, type: 3}
+--- !u!1 &1215270197
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1215270199}
+  - component: {fileID: 1215270198}
+  m_Layer: 0
+  m_Name: CombatSandboxHarness
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1215270198
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1215270197}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6546ba775a60824f8ed02caf8a6bb2c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Bootstrap.CombatSandboxHarness
+  m_monster: {fileID: 2074268109}
+  m_balance: {fileID: 11400000, guid: 77ea04bc10f006f41b2d8e02e4048230, type: 2}
+--- !u!4 &1215270199
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1215270197}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1759500508
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -910,6 +956,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7fbc805430e19024693a9834ff1df874, type: 3}
+--- !u!114 &2074268109 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4468462031971998791, guid: 7fbc805430e19024693a9834ff1df874, type: 3}
+  m_PrefabInstance: {fileID: 2074268108}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ece911eb551d4b479d6c88607b4b453, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampLantern.Combat.Monsters.MonsterController
 --- !u!1 &2129625424
 GameObject:
   m_ObjectHideFlags: 0
@@ -970,3 +1027,4 @@ SceneRoots:
   - {fileID: 2021483105}
   - {fileID: 86060825}
   - {fileID: 109066229}
+  - {fileID: 1215270199}

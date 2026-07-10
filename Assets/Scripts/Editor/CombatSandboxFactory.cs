@@ -128,6 +128,29 @@ namespace CampLantern.EditorTools
                 added++;
             }
 
+            // IMGUI 디버그 하네스 (step-11) — 몬스터·밸런스 참조 배선 (있으면 참조만 갱신)
+            GameObject harnessGo = FindRoot(scene, "CombatSandboxHarness");
+            if (harnessGo == null)
+            {
+                harnessGo = new GameObject("CombatSandboxHarness");
+                harnessGo.AddComponent<CampLantern.Bootstrap.CombatSandboxHarness>();
+                added++;
+            }
+            var harness = harnessGo.GetComponent<CampLantern.Bootstrap.CombatSandboxHarness>();
+            if (harness != null)
+            {
+                var so = new UnityEditor.SerializedObject(harness);
+                var bearRoot = FindRoot(scene, "CombatMonster_Bear");
+                var monsterProp = so.FindProperty("m_monster");
+                var balanceProp = so.FindProperty("m_balance");
+                if (monsterProp != null && bearRoot != null)
+                    monsterProp.objectReferenceValue = bearRoot.GetComponent<CampLantern.Combat.Monsters.MonsterController>();
+                if (balanceProp != null)
+                    balanceProp.objectReferenceValue = AssetDatabase.LoadAssetAtPath<CampLantern.Combat.Data.CombatBalanceData>(
+                        "Assets/Data/Combat/CombatBalance.asset");
+                so.ApplyModifiedPropertiesWithoutUndo();
+            }
+
             EditorSceneManager.SaveScene(scene, k_scenePath);
             Debug.Log($"[MakeAssets] CombatSandbox {(isNew ? "created" : "updated")}: {k_scenePath} (added {added})");
         }
