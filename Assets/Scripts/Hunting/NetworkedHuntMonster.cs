@@ -42,8 +42,11 @@ namespace CampLantern.Hunting
         private AggroController m_aggro;
         private SkillRunner m_skills;
         private SkillHitCheck m_hitCheck;
+        private MonsterAnimationDriver m_animDriver;
         private HuntLedger m_ledger;
         private ChangeDetector m_changes;
+        private int m_lastRenderedHp;
+        private string m_lastRenderedState;
         private readonly Dictionary<PlayerRef, GameObject> m_attackerProxies = new Dictionary<PlayerRef, GameObject>();
         private bool m_defeatedFired;
         private bool m_lastAuthority;
@@ -160,8 +163,10 @@ namespace CampLantern.Hunting
             m_aggro = GetComponent<AggroController>();
             m_skills = GetComponent<SkillRunner>();
             m_hitCheck = GetComponent<SkillHitCheck>();
+            m_animDriver = GetComponent<MonsterAnimationDriver>();
             m_ledger = GetComponent<HuntLedger>();
             m_changes = GetChangeDetector(ChangeDetector.Source.SimulationState);
+            m_lastRenderedHp = NetCurrentHp;
 
             // 피격 수신자를 이 라우터로 — 같은 GO의 MonsterHealth 직접 수신 차단 (권한 경계 유지)
             foreach (HitVolume volume in GetComponentsInChildren<HitVolume>(true))
@@ -187,18 +192,41 @@ namespace CampLantern.Hunting
             if (Object.HasStateAuthority != m_lastAuthority)
                 ApplyAuthorityGating();
 
-            // 처치 감지 — 각 클라 1회 (HuntTarget.Render 패턴)
+            bool isAuthority = Object.HasStateAuthority;
+
             foreach (string change in m_changes.DetectChanges(this))
             {
-                if (change != nameof(NetCurrentHp)) continue;
-                if (NetCurrentHp <= 0 && !m_defeatedFired)
+                // 처치 감지 — 각 클라 1회 (HuntTarget.Render 패턴)
+                if (change == nameof(NetCurrentHp))
                 {
-                    m_defeatedFired = true;
-                    Defeated?.Invoke(this);
+                    if (NetCurrentHp <= 0 && !m_defeatedFired)
+                    {
+                        m_defeatedFired = true;
+                        Defeated?.Invoke(this);
 
-                    HuntTargetDef huntDef = m_health != null && m_health.Data != null ? m_health.Data.huntDef : null;
-                    if (huntDef != null && m_ledger != null && m_ledger.IsParticipant(Runner.LocalPlayer))
-                        RewardGranted?.Invoke(huntDef); // 참여자 전원 동일 보상 — 각자 클라에서 발화
+                        HuntTargetDef huntDef = m_health != null && m_health.Data != null ? m_health.Data.huntDef : null;
+                        if (huntDef != null && m_ledger != null && m_ledger.IsParticipant(Runner.LocalPlayer))
+                            RewardGranted?.Invoke(huntDef); // 참여자 전원 동일 보상 — 각자 클라에서 발화
+                    }
+
+                    // 비권한 표현: HP 감소 = 피격 연출, 0 = 사망 연출 (step-04 — 권한자는 로컬 이벤트 경로)
+                    if (!isAuthority && m_animDriver != null)
+                    {
+                        if (NetCurrentHp <= 0) m_animDriver.ApplyStateByName("Dead");
+                        else if (NetCurrentHp < m_lastRenderedHp) m_animDriver.ApplyHitReaction();
+                    }
+                    m_lastRenderedHp = NetCurrentHp;
+                }
+
+                // 비권한 표현: 권한자 FSM 상태명 → 애니 (step-04)
+                if (change == nameof(NetStateName) && !isAuthority && m_animDriver != null)
+                {
+                    string state = NetStateName;
+                    if (state != m_lastRenderedState && NetCurrentHp > 0)
+                    {
+                        m_lastRenderedState = state;
+                        m_animDriver.ApplyStateByName(state);
+                    }
                 }
             }
         }

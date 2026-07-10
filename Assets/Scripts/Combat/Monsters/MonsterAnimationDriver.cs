@@ -167,6 +167,43 @@ namespace CampLantern.Combat.Monsters
             ApplyExclusive(m_deathParam);
         }
 
+        // ── 비권한 클라 표현 브리지 (combat-detailed-network step-04) ──
+        // 원격에는 FSM이 없으므로(권한자 전용) NetworkedHuntMonster가 [Networked] 상태명/HP 변화를
+        // 이 진입점으로 전달한다. 기존 이벤트 구독 경로(권한자/로컬)는 불변.
+
+        /// <summary>상태명 문자열로 구동 — 원격 몬스터 표현. Attack은 스킬 인덱스를 모르므로 첫 파라미터 사용.
+        /// Stunned 오버레이는 메인 상태명에 없어 원격 표현 미지원 (TODO(SPEC): 오버레이 동기화 시 확장).</summary>
+        public void ApplyStateByName(string stateName)
+        {
+            if (string.IsNullOrEmpty(stateName)) return;
+            m_lastIdleLocomotion = null;
+
+            if (stateName.StartsWith("Attack"))
+            {
+                if (m_attackParams != null && m_attackParams.Length > 0)
+                    ApplyExclusive(m_attackParams[0]);
+                return;
+            }
+
+            switch (stateName)
+            {
+                case "Idle": ApplyExclusive(m_idleParam); break;
+                case "Chase": ApplyExclusive(m_chaseParam); break;
+                case "Return": ApplyExclusive(m_returnParam); break;
+                case "Exhausted": ApplyExclusive(m_exhaustedParam); break;
+                case "Dead": ApplyExclusive(m_deathParam); break;
+            }
+        }
+
+        /// <summary>피격 반응 — 원격 몬스터 표현 (NetCurrentHp 감소 감지 시). 로컬 경로(OnDamaged)와 동일 연출.</summary>
+        public void ApplyHitReaction()
+        {
+            string current = m_currentParam;
+            ApplyExclusive(m_hitParam);
+            if (m_reassert != null) StopCoroutine(m_reassert);
+            m_reassert = StartCoroutine(ReassertAfter(current));
+        }
+
         /// <summary>대상 파라미터만 true, 관리 대상 나머지 false (배타적 bool 스위칭 — BearAnimator 파라미터가 Bool이라서).</summary>
         private void ApplyExclusive(string param)
         {
