@@ -10,8 +10,9 @@ namespace CampLantern.Fishing
     public class RodData
     {
         public string rodId;
-        public float power;      // 물고기가 끌려오는 속도 = 체력 감소 속도 (§7-1)
-        public int durability;   // 챔질 성공마다 -1. 0 도달 시 사용 불가 — 수리대 수리 필요 (§5-2)
+        public float power;         // 물고기가 끌려오는 속도 = 체력 감소 속도 (§7-1)
+        public int durability;      // 챔질 성공마다 -1. 0 도달 시 사용 불가 — 수리대 수리 필요 (§5-2)
+        public int maxDurability;   // 수리 시 복구 상한 (§5-2 수리대 — 가격은 FishingFormulas.RepairPrice §9)
         public float length;     // 캐스팅 사거리 — 먼 위치 어종 접근 게이트
         public float tension;    // 낚시 시도마다 초기화되는 줄 내구도 풀의 최대값 (§7-2)
     }

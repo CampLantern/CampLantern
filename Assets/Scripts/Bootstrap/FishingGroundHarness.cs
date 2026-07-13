@@ -117,10 +117,46 @@ namespace CampLantern.Bootstrap
             SceneManager.LoadScene(m_lobbySceneName);
         }
 
+        // 미끼 구매 — 코인 싱크 배선 (economy.md 일반 싱크, 가격은 §9 FishingFormulas 경유)
+        private void BuyBait(int quantity)
+        {
+            int price = FishingFormulas.BaitPrice() * quantity;
+            if (!m_state.Wallet.TrySpend(price))
+            {
+                m_lastLog = $"미끼 구매 실패 — 코인 부족 ({price}c 필요)";
+                return;
+            }
+            m_rod.AddBait(quantity);
+            m_lastLog = $"미끼 {quantity}개 구매 (-{price}c)";
+            m_state.Save();
+        }
+
+        // 낚싯대 수리 — 코인 싱크 배선 (§5-2 수리대, 가격은 §9 FishingFormulas 경유)
+        private void RepairRod()
+        {
+            int price = FishingFormulas.RepairPrice(m_rod.Rod.durability);
+            if (!m_state.Wallet.TrySpend(price))
+            {
+                m_lastLog = $"수리 실패 — 코인 부족 ({price}c 필요)";
+                return;
+            }
+            m_rod.Repair();
+            m_lastLog = $"낚싯대 수리 완료 (-{price}c)";
+            m_state.Save();
+        }
+
         // 정교화 낚시 디버그 조작 (개발용 IMGUI — VR 입력은 FishingRodInput 담당, Quest 빌드 전 제거 대상)
         private void DrawFishing()
         {
-            GUILayout.Label($"── 낚시 ── 미끼 {m_rod.BaitCount} · 내구도 {m_rod.Rod.durability} · 코인 {m_state.Wallet.Coins} · XP {m_xp}");
+            GUILayout.Label($"── 낚시 ── 미끼 {m_rod.BaitCount} · 내구도 {m_rod.Rod.durability}/{m_rod.Rod.maxDurability} · 코인 {m_state.Wallet.Coins} · XP {m_xp}");
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button($"미끼 구매 x5 ({FishingFormulas.BaitPrice() * 5}c)"))
+                BuyBait(5);
+            if (m_rod.Rod.durability < m_rod.Rod.maxDurability &&
+                GUILayout.Button($"수리 ({FishingFormulas.RepairPrice(m_rod.Rod.durability)}c)"))
+                RepairRod();
+            GUILayout.EndHorizontal();
 
             if (m_resultPanel != null && m_resultPanel.gameObject.activeSelf && GUILayout.Button("결과 닫기"))
                 m_resultPanel.Hide();

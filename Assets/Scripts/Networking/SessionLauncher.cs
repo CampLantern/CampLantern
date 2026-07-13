@@ -20,6 +20,10 @@ namespace CampLantern.Networking
         /// <summary>현재 실행 중인 러너. 세션 없으면 null.</summary>
         public NetworkRunner Runner { get; private set; }
 
+        // StartGame 진행 중 재진입 가드 — Runner는 StartGame 완료 후에야 대입되므로
+        // Runner null 체크만으로는 진행 중 재호출을 막지 못한다 (러너 이중 부착 방지).
+        private bool m_starting;
+
         /// <summary>세션 시작 성공 시 발화. 구독자는 OnDestroy/OnDisable에서 반드시 해제할 것 (rules/scripts.md).</summary>
         public event Action<NetworkRunner> SessionStarted;
 
@@ -31,43 +35,52 @@ namespace CampLantern.Networking
         {
             if (string.IsNullOrEmpty(sessionName))
                 throw new ArgumentException("sessionName이 비어 있음", nameof(sessionName));
-            if (Runner != null)
+            if (Runner != null || m_starting)
             {
-                Debug.LogWarning("[SessionLauncher] 이미 세션이 실행 중 — 중복 시작 무시");
+                Debug.LogWarning("[SessionLauncher] 이미 세션이 실행/시작 중 — 중복 시작 무시");
                 return;
             }
 
-            var runner = gameObject.AddComponent<NetworkRunner>();
-            runner.ProvideInput = true; // step-08 협동 사냥 입력용 — Shared Mode에서는 로컬 플레이어 입력 제공 필수
-
-            // StartGame이 SceneManager 없이도 기본값을 만들어주지만, FusionBootstrap과 동일하게 명시 부착
-            var sceneManager = runner.GetComponent<INetworkSceneManager>()
-                               ?? (INetworkSceneManager)runner.gameObject.AddComponent<NetworkSceneManagerDefault>();
-
-            var args = new StartGameArgs
+            m_starting = true;
+            try
             {
-                GameMode                 = GameMode.Shared, // 데디케이티드/호스트 모드는 P0 불필요 (step-07 제약)
-                SessionName              = sessionName,
-                SceneManager             = sceneManager,
-                StartGameCancellationToken = ct,
-            };
+                var runner = gameObject.AddComponent<NetworkRunner>();
+                runner.ProvideInput = true; // step-08 협동 사냥 입력용 — Shared Mode에서는 로컬 플레이어 입력 제공 필수
 
-            // 멀티 피어 모드(에디터 더미 테스트)일 때만 시작 씬 지정 — 싱글 피어 경로는 기존 그대로
-            NetworkSceneInfo? arenaScene = TryGetMultiPeerArenaScene();
-            if (arenaScene.HasValue) args.Scene = arenaScene.Value;
+                // StartGame이 SceneManager 없이도 기본값을 만들어주지만, FusionBootstrap과 동일하게 명시 부착
+                var sceneManager = runner.GetComponent<INetworkSceneManager>()
+                                   ?? (INetworkSceneManager)runner.gameObject.AddComponent<NetworkSceneManagerDefault>();
 
-            var result = await runner.StartGame(args);
+                var args = new StartGameArgs
+                {
+                    GameMode                 = GameMode.Shared, // 데디케이티드/호스트 모드는 P0 불필요 (step-07 제약)
+                    SessionName              = sessionName,
+                    SceneManager             = sceneManager,
+                    StartGameCancellationToken = ct,
+                };
 
-            if (!result.Ok)
+                // 멀티 피어 모드(에디터 더미 테스트)일 때만 시작 씬 지정 — 싱글 피어 경로는 기존 그대로
+                NetworkSceneInfo? arenaScene = TryGetMultiPeerArenaScene();
+                if (arenaScene.HasValue) args.Scene = arenaScene.Value;
+
+                var result = await runner.StartGame(args);
+
+                if (!result.Ok)
+                {
+                    Destroy(runner);
+                    throw new InvalidOperationException(
+                        $"[SessionLauncher] 세션 시작 실패: {result.ShutdownReason} — {result.ErrorMessage}");
+                }
+
+                ct.ThrowIfCancellationRequested();
+
+                Runner = runner;
+            }
+            finally
             {
-                Destroy(runner);
-                throw new InvalidOperationException(
-                    $"[SessionLauncher] 세션 시작 실패: {result.ShutdownReason} — {result.ErrorMessage}");
+                m_starting = false;
             }
 
-            ct.ThrowIfCancellationRequested();
-
-            Runner = runner;
             SessionStarted?.Invoke(Runner);
         }
 
@@ -82,9 +95,10 @@ namespace CampLantern.Networking
         }
 
         /// <summary>세션을 종료하고 러너를 제거한다. 세션이 없으면 아무것도 하지 않는다.</summary>
-        public async Task Shutdown()
+        public async Task Shutdown(CancellationToken ct = default)
         {
             if (Runner == null) return;
+            ct.ThrowIfCancellationRequested();
 
             var runner = Runner;
             Runner = null;

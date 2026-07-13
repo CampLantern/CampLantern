@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using CampLantern.Combat;
 using CampLantern.Core;
 using CampLantern.Core.Persistence;
 using CampLantern.Hunting;
@@ -38,6 +39,11 @@ namespace CampLantern.Bootstrap
 
         private readonly List<HuntTarget> m_huntTargets = new List<HuntTarget>();        // 훅한 사냥감들(사슴+멧돼지)
         private readonly HashSet<HuntLedger> m_hookedLedgers = new HashSet<HuntLedger>(); // 보상 중복 구독 방지
+
+        // 네트워크 전투 몬스터(신 곰 — NetworkedHuntMonster) 훅. HuntTarget 라인과 별개 이벤트라 따로 구독한다.
+        private readonly List<NetworkedHuntMonster> m_netMonstersBuffer = new List<NetworkedHuntMonster>();
+        private readonly List<NetworkedHuntMonster> m_netMonsters = new List<NetworkedHuntMonster>();
+        private readonly HashSet<NetworkedHuntMonster> m_hookedMonsters = new HashSet<NetworkedHuntMonster>();
 
         private NetworkRunner m_dummyRunner;
         private bool m_dummyJoining;
@@ -91,6 +97,17 @@ namespace CampLantern.Bootstrap
             m_launcher.Runner.GetAllBehaviours(m_huntTargetsBuffer);
             foreach (HuntTarget t in m_huntTargetsBuffer)
                 if (t != null && !m_huntTargets.Contains(t)) HookHuntTarget(t);
+
+            // 네트워크 전투 몬스터(신 곰)도 훅 — RewardGranted가 HuntLedger와 별개 이벤트라 미구독 시 보상 유실
+            m_netMonstersBuffer.Clear();
+            m_launcher.Runner.GetAllBehaviours(m_netMonstersBuffer);
+            foreach (NetworkedHuntMonster m in m_netMonstersBuffer)
+                if (m != null && m_hookedMonsters.Add(m))
+                {
+                    m_netMonsters.Add(m);
+                    m.RewardGranted -= OnRewardGranted;
+                    m.RewardGranted += OnRewardGranted;
+                }
         }
 
         public HuntTarget FindHuntTarget(NetworkRunner runner)
@@ -146,6 +163,11 @@ namespace CampLantern.Bootstrap
                 if (ledger != null) ledger.RewardGranted -= OnRewardGranted;
             m_hookedLedgers.Clear();
             m_huntTargets.Clear();
+
+            foreach (NetworkedHuntMonster monster in m_hookedMonsters)
+                if (monster != null) monster.RewardGranted -= OnRewardGranted;
+            m_hookedMonsters.Clear();
+            m_netMonsters.Clear();
         }
 
         private void OnRewardGranted(HuntTargetDef def)
@@ -153,6 +175,7 @@ namespace CampLantern.Bootstrap
             if (def.RewardMaterials == null) return;
             foreach (ItemDef material in def.RewardMaterials) m_state.Inventory.Add(material);
             m_lastLog = $"사냥 보상 지급: {def.DisplayName}";
+            m_state.Save(); // OS 강제종료 대비 — 보상 즉시 저장 (낚시 포획 저장과 동일 정책)
         }
 
         private async Task JoinAsync()
@@ -288,7 +311,8 @@ namespace CampLantern.Bootstrap
 
             GUILayout.Space(8);
             m_huntTargets.RemoveAll(t => t == null || t.Object == null); // despawn된 사냥감 정리
-            if (m_huntTargets.Count == 0)
+            m_netMonsters.RemoveAll(m => m == null || m.Object == null);
+            if (m_huntTargets.Count == 0 && m_netMonsters.Count == 0)
             {
                 GUILayout.Label("사냥감 스폰 대기 중...");
                 return;
@@ -313,6 +337,34 @@ namespace CampLantern.Bootstrap
                 var ledger = target.GetComponent<HuntLedger>();
                 if (ledger != null && GUILayout.Button("유인(기여)"))
                     ledger.RecordContribution(runner.LocalPlayer, HuntLedger.ContributionKind.Lure);
+                GUILayout.EndHorizontal();
+            }
+
+            // 네트워크 전투 몬스터(신 곰) — 실무기(HitVolume) 경로 외에 디버그 타격/시작 버튼 제공
+            foreach (NetworkedHuntMonster monster in m_netMonsters)
+            {
+                HuntTargetDef huntDef = monster.Health != null && monster.Health.Data != null
+                    ? monster.Health.Data.huntDef : null;
+                string monsterName = huntDef != null ? huntDef.DisplayName : "전투 몬스터";
+                int needPlayers = huntDef != null ? huntDef.RequiredParticipants : 1;
+                GUILayout.Label($"[{monsterName}] HP: {monster.NetCurrentHp}/{monster.NetMaxHp}  진행중: {(bool)monster.HuntActive}  (필요 {needPlayers}인)");
+                GUILayout.BeginHorizontal();
+                if (monster.Object.HasStateAuthority)
+                {
+                    if (GUILayout.Button("사냥 시작"))
+                        m_lastLog = monster.TryStartHunt() ? $"{monsterName} 사냥 시작!" : $"{monsterName} 시작 불가 ({needPlayers}인 미만)";
+                }
+                else
+                {
+                    GUILayout.Label("(시작은 마스터만)", GUILayout.Width(110));
+                }
+                if (GUILayout.Button("타격"))
+                    monster.ApplyDamage(new HitInfo
+                    {
+                        BaseDamage = m_hitDamage,
+                        Attacker = gameObject,
+                        Point = monster.transform.position,
+                    });
                 GUILayout.EndHorizontal();
             }
 

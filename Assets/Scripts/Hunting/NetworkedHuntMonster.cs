@@ -184,6 +184,11 @@ namespace CampLantern.Hunting
             // 상태명 미러 — step-04 비권한 표현이 소비. 변화 시에만 쓰기(대역폭).
             string current = m_controller != null ? m_controller.CurrentStateName : string.Empty;
             if (NetStateName != current) NetStateName = current;
+
+            // HP 미러 보강 — Return 상태의 ResetToFull 등 RPC를 거치지 않는 로컬 회복이
+            // 비권한 피어에 스테일로 남는 것 방지. 변화 시에만 쓰기(대역폭).
+            if (NetCurrentHp != m_health.CurrentHp || NetMaxHp != m_health.MaxHp)
+                MirrorHealth();
         }
 
         public override void Render()

@@ -45,6 +45,8 @@ namespace CampLantern.Networking
         private void OnSessionStarted(NetworkRunner runner)
         {
             m_runner = runner;
+            m_wipedFired = false; // 세션 재시작 시 이전 세션의 전멸 감지 잔존 방지 — 안 하면 새 세션 전멸이 영영 미발화
+            m_wipeTimer = 0f;
             if (m_playerPrefab == null)
             {
                 Debug.LogError("[CombatPlayerSpawner] 플레이어 프리팹 미배선");

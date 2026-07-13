@@ -8,6 +8,7 @@ Photon Room 개념으로 로비/낚시터/사냥터/영지 4개 공간을 나누
 - `Bootstrap/LobbyHarness.cs` / `FishingGroundHarness.cs` / `HuntZoneHarness.cs` / `EstateHarness.cs` — 공간별 씬 진입점(개발용 IMGUI). 각 씬: `Lobby.unity`, `FishingGround.unity`, `HuntZone_A.unity`, `EstateTemplate.unity` (Editor 팩토리: `RoomScenesFactory.cs`, `Tools > Make Assets > Room Scenes`).
 - **P0 스켈레톤 한계 (2026-07-07)**: 매칭/샤딩(낚시터 "정원 도달 시 새 인스턴스"), 사냥터 존 자동 배정(위치 기반 라우팅), 영지 소유자 인증(현재 `SystemInfo.deviceUniqueIdentifier` 임시값)은 전부 백엔드 미정이라 미구현 — 고정 이름 Room 접속만 된다.
 - **로컬 JSON 저장 도입 (2026-07-08)**: `Core/Persistence/PlayerState.cs`+`SaveService.cs`로 코인/인벤토리/영지 배치가 로컬 JSON(`Application.persistentDataPath/player_save.json`)에 저장돼 로비↔낚시터↔사냥터↔영지 이동에도 이어진다. `Core/ContentRegistry.cs`(Resources 소재, `ContentRegistryFactory`로 생성)가 저장된 Id 문자열을 실제 Def 에셋으로 복원. **이건 "내 기기 안에서 상태 유지"만 해결** — 다른 유저가 오프라인 주인 영지를 읽는 진짜 오프라인 방문은 여전히 서버 필요 (tech-stack-decisions.md 참조).
+- **즉시 저장 정책 (2026-07-13)**: 인벤토리/지갑/배치가 변하는 모든 시점(포획·사냥 보상·구매·배치·회수·판매·조리·미끼/수리)에 하네스가 `PlayerState.Save()`를 즉시 호출한다. 근거: Quest(Android)는 OS 강제종료 시 `OnApplicationQuit`이 보장되지 않아 "씬 이탈 시에만 저장"은 유실 경로였다(QA 발견 — 사냥 Rare 재료 유실 시나리오). **새 획득/소비 경로를 추가하면 같은 시점에 Save를 붙일 것.** 파일이 수 KB라 성능 부담 없음.
 
 ## 공간별 정의
 

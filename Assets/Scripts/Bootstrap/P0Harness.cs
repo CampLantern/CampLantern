@@ -190,11 +190,13 @@ namespace CampLantern.Bootstrap
             }
             m_state.Wallet.Add(reward.coin);
             m_lastLog = $"낚음: {displayName} ({fish.Length:F1}cm)";
+            m_state.Save(m_estateManager); // OS 강제종료 대비 — 획득 즉시 저장 (FishingGroundHarness와 동일 정책)
         }
 
         private void OnCooked(ItemDef result)
         {
             m_lastLog = $"조리 결과: {result.DisplayName}";
+            m_state.Save(m_estateManager); // 재료 소모·결과물 반영 즉시 저장
         }
 
         private void OnSessionStarted(NetworkRunner runner)
@@ -228,6 +230,7 @@ namespace CampLantern.Bootstrap
             foreach (ItemDef material in def.RewardMaterials)
                 m_state.Inventory.Add(material);
             m_lastLog = $"사냥 보상 지급: {def.DisplayName}";
+            m_state.Save(m_estateManager); // OS 강제종료 대비 — 보상 즉시 저장
         }
 
         private async Task JoinSessionAsync()
@@ -330,12 +333,38 @@ namespace CampLantern.Bootstrap
             GUILayout.EndScrollView();
         }
 
+        // 미끼 구매/수리 — 코인 싱크 배선 (economy.md, 가격은 §9 FishingFormulas 경유)
+        private void BuyBait(int quantity)
+        {
+            int price = FishingFormulas.BaitPrice() * quantity;
+            if (!m_state.Wallet.TrySpend(price)) { m_lastLog = $"미끼 구매 실패 — 코인 부족 ({price}c 필요)"; return; }
+            m_rod.AddBait(quantity);
+            m_lastLog = $"미끼 {quantity}개 구매 (-{price}c)";
+            m_state.Save(m_estateManager);
+        }
+
+        private void RepairRod()
+        {
+            int price = FishingFormulas.RepairPrice(m_rod.Rod.durability);
+            if (!m_state.Wallet.TrySpend(price)) { m_lastLog = $"수리 실패 — 코인 부족 ({price}c 필요)"; return; }
+            m_rod.Repair();
+            m_lastLog = $"낚싯대 수리 완료 (-{price}c)";
+            m_state.Save(m_estateManager);
+        }
+
         private void DrawFishing()
         {
             GUILayout.Space(8);
             Fish fish = m_rod.CurrentFish;
-            GUILayout.Label($"── 낚시 ── 미끼 {m_rod.BaitCount} · 내구도 {m_rod.Rod.durability}" +
+            GUILayout.Label($"── 낚시 ── 미끼 {m_rod.BaitCount} · 내구도 {m_rod.Rod.durability}/{m_rod.Rod.maxDurability}" +
                             (fish != null ? $" · {fish.State}/{fish.Line} · HP {fish.Health:F1} · 텐션 {fish.Tension:F1}" : " · 대기"));
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button($"미끼x5 ({FishingFormulas.BaitPrice() * 5}c)"))
+                BuyBait(5);
+            if (m_rod.Rod.durability < m_rod.Rod.maxDurability &&
+                GUILayout.Button($"수리 ({FishingFormulas.RepairPrice(m_rod.Rod.durability)}c)"))
+                RepairRod();
+            GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             if (fish == null)
             {
@@ -366,7 +395,10 @@ namespace CampLantern.Bootstrap
                     m_pot.TryAddIngredient(entry.Key);
                 if (GUILayout.Button($"판매 {entry.Key.SellPrice}c", GUILayout.Width(90)) &&
                     m_state.Inventory.TryRemove(entry.Key))
+                {
                     m_state.Wallet.Add(entry.Key.SellPrice);
+                    m_state.Save(m_estateManager); // 판매 즉시 저장
+                }
                 GUILayout.EndHorizontal();
             }
         }
@@ -401,7 +433,11 @@ namespace CampLantern.Bootstrap
                 else
                 {
                     if (GUILayout.Button("구매", GUILayout.Width(50)))
-                        m_lastLog = m_state.Shop.TryPurchase(def) ? $"구매: {def.DisplayName}" : "구매 실패 (재화 부족)";
+                    {
+                        bool purchased = m_state.Shop.TryPurchase(def);
+                        m_lastLog = purchased ? $"구매: {def.DisplayName}" : "구매 실패 (재화 부족)";
+                        if (purchased) m_state.Save(m_estateManager); // 구매 즉시 저장
+                    }
                     int owned = m_state.Shop.CountOwned(def);
                     if (owned > 0 && GUILayout.Button($"배치({owned})", GUILayout.Width(70)))
                         TryPlace(def);
@@ -410,7 +446,10 @@ namespace CampLantern.Bootstrap
             }
 
             if (m_estateManager.PlacedObjects.Count > 0 && GUILayout.Button("마지막 배치물 회수"))
+            {
                 m_estateManager.Remove(m_estateManager.PlacedObjects[m_estateManager.PlacedObjects.Count - 1]);
+                m_state.Save(m_estateManager); // 회수(보유 반환) 즉시 저장
+            }
         }
 
         private void TryPlace(EstateObjectDef def)
@@ -427,9 +466,14 @@ namespace CampLantern.Bootstrap
             Vector3 pos = m_placeOrigin + new Vector3((index % 4) * 2f, 0f, (index / 4) * 2f);
             PlacedObject placed = m_estateManager.Place(def, pos, Quaternion.identity);
             if (placed == null)
+            {
                 m_state.Shop.ReturnOwned(def); // CanPlace 통과 후 실패는 도달 불가 — 방어적 반환
+            }
             else
+            {
                 m_lastLog = $"배치: {def.DisplayName}";
+                m_state.Save(m_estateManager); // 배치 즉시 저장
+            }
         }
 
         private void DrawNetwork()

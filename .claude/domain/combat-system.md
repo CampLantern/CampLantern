@@ -41,3 +41,4 @@
 - `WeaponPrefabFactory`의 **Weapons (Force Recreate)는 전투 배선을 유실**시킨다 — 직후 `Combat — Wire Melee Weapons`/`Wire Bow & Arrow` 재실행.
 - 곰 프리팹 컴포넌트가 늘면 `Combat Monster — Ensure Components`에 등록(재생성은 skip 정책 — 수동 조정 보존).
 - Combat 코어에 Fusion 참조를 넣지 말 것 — 로컬 봇 검증·오프라인 폴백이 깨진다. 네트워크 확장은 Hunting/Networking 계층에서 감싼다.
+- 사냥 보상 이벤트가 **두 계보**다: 구 라인 `HuntLedger.RewardGranted`(사슴/멧돼지/구 곰)와 `NetworkedHuntMonster.RewardGranted`(신 곰 — HuntLedger 무수정 계약 때문에 대행 발화). **하네스는 둘 다 구독해야 보상이 인벤토리에 들어간다** (2026-07-13 QA에서 신 곰 미구독 발견·수정 — `HuntZoneHarness.Update` 참조). 새 사냥감/하네스 추가 시 어느 계보인지 확인할 것.

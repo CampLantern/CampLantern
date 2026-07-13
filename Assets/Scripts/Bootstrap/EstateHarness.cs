@@ -99,6 +99,7 @@ namespace CampLantern.Bootstrap
         private void OnCooked(ItemDef result)
         {
             m_lastLog = $"조리 결과: {result.DisplayName}";
+            m_state.Save(m_estateManager); // OS 강제종료 대비 — 재료 소모·결과물 반영 즉시 저장
         }
 
         // 영지 소유자 식별 — 인증 백엔드 확정 전 임시값 (SystemInfo.deviceUniqueIdentifier).
@@ -153,7 +154,10 @@ namespace CampLantern.Bootstrap
                 if (GUILayout.Button("투입", GUILayout.Width(60))) m_pot.TryAddIngredient(entry.Key);
                 if (GUILayout.Button($"판매 {entry.Key.SellPrice}c", GUILayout.Width(90)) &&
                     m_state.Inventory.TryRemove(entry.Key))
+                {
                     m_state.Wallet.Add(entry.Key.SellPrice);
+                    m_state.Save(m_estateManager); // 판매 즉시 저장
+                }
                 GUILayout.EndHorizontal();
             }
 
@@ -182,7 +186,11 @@ namespace CampLantern.Bootstrap
                 else
                 {
                     if (GUILayout.Button("구매", GUILayout.Width(50)))
-                        m_lastLog = m_state.Shop.TryPurchase(def) ? $"구매: {def.DisplayName}" : "구매 실패 (재화 부족)";
+                    {
+                        bool purchased = m_state.Shop.TryPurchase(def);
+                        m_lastLog = purchased ? $"구매: {def.DisplayName}" : "구매 실패 (재화 부족)";
+                        if (purchased) m_state.Save(m_estateManager); // 구매 즉시 저장
+                    }
                     int owned = m_state.Shop.CountOwned(def);
                     if (owned > 0 && GUILayout.Button($"배치({owned})", GUILayout.Width(70)))
                         TryPlace(def);
@@ -191,7 +199,10 @@ namespace CampLantern.Bootstrap
             }
 
             if (m_estateManager.PlacedObjects.Count > 0 && GUILayout.Button("마지막 배치물 회수"))
+            {
                 m_estateManager.Remove(m_estateManager.PlacedObjects[m_estateManager.PlacedObjects.Count - 1]);
+                m_state.Save(m_estateManager); // 회수(보유 반환) 즉시 저장
+            }
         }
 
         private void TryPlace(EstateObjectDef def)
@@ -206,8 +217,15 @@ namespace CampLantern.Bootstrap
             int index = m_estateManager.PlacedObjects.Count;
             Vector3 pos = m_placeOrigin + new Vector3((index % 4) * 2f, 0f, (index / 4) * 2f);
             PlacedObject placed = m_estateManager.Place(def, pos, Quaternion.identity);
-            if (placed == null) m_state.Shop.ReturnOwned(def);
-            else m_lastLog = $"배치: {def.DisplayName}";
+            if (placed == null)
+            {
+                m_state.Shop.ReturnOwned(def);
+            }
+            else
+            {
+                m_lastLog = $"배치: {def.DisplayName}";
+                m_state.Save(m_estateManager); // 배치 즉시 저장
+            }
         }
     }
 }

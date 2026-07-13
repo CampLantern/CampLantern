@@ -48,6 +48,8 @@ namespace CampLantern.Fishing
             // 직렬화 누락/구버전 씬 대비 — 코드로 확정 (rules/scripts.md)
             if (m_rod == null || string.IsNullOrEmpty(m_rod.rodId))
                 m_rod = CreateBasicRod();
+            if (m_rod.maxDurability <= 0) // maxDurability 필드 추가 전 직렬화된 씬 보정
+                m_rod.maxDurability = m_rod.durability > 0 ? m_rod.durability : 10;
             if (m_tuning == null)
                 m_tuning = new FishingTuning();
         }
@@ -55,7 +57,7 @@ namespace CampLantern.Fishing
         // §7-2 예시(텐션 10 낚싯대로 힘 10 물고기 → 허용 실수 4초)에 맞춘 기본 낚싯대.
         private static RodData CreateBasicRod() => new RodData
         {
-            rodId = "rod_basic", power = 1f, durability = 10, length = 15f, tension = 10f, // TODO(DATA)
+            rodId = "rod_basic", power = 1f, durability = 10, maxDurability = 10, length = 15f, tension = 10f, // TODO(DATA)
         };
 
         // ── 코어 진입점 (입력 어댑터/하네스가 호출) ──────────────────
@@ -134,6 +136,16 @@ namespace CampLantern.Fishing
 
         /// <summary>챔질 성공(Fight 진입) 시점의 내구도 차감 (§4).</summary>
         public void ConsumeDurability() => m_rod.durability = Mathf.Max(0, m_rod.durability - 1);
+
+        /// <summary>미끼 보충 — 결제(Wallet, §9 BaitPrice 경유)는 하네스 책임. 낚싯대는 수량만 관리.</summary>
+        public void AddBait(int count)
+        {
+            if (count <= 0) return;
+            m_baitCount += count;
+        }
+
+        /// <summary>내구도 전량 수리 (§5-2 수리대) — 결제(Wallet, §9 RepairPrice 경유)는 하네스 책임.</summary>
+        public void Repair() => m_rod.durability = m_rod.maxDurability;
 
         /// <summary>물고기가 시도 종료(실패 복귀/포획) 시 호출 — 현재 대상 해제 + 구독/홀드 상태 정리.</summary>
         public void ClearCurrent(Fish fish)
