@@ -8,15 +8,21 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 namespace CampLantern.EditorTools
 {
     /// <summary>
     /// 로비 씬 VR 맵 구성기 — 캠프장 환경(프리미티브 플레이스홀더 아트), 스폰포인트, 석양 라이팅,
-    /// VR 포탈 UI(월드스페이스 패널 + 낚시터/사냥터/영지 버튼)를 Lobby.unity에 구성한다.
+    /// VR 포탈 관문을 Lobby.unity에 구성한다.
     ///
-    /// idempotent: 환경(LobbyEnvironment)·포탈(PortalBoard) 루트는 지우고 재구성, 스폰포인트·EventSystem은
-    /// 없을 때만 추가. RoomScenesFactory.CreateLobby가 씬 생성 시 공통 호출하므로 씬을 재생성해도 맵이 유지된다.
+    /// 포탈 구조는 GDD 그림 1 "공간 구조 흐름도"를 따른다: 로비를 관문으로 세 활동 공간이 **분기** —
+    /// 표지판 하나가 아니라 목적지별 관문(게이트) 3개가 세 갈래 길 끝에 서고, 색 코딩도 흐름도와 맞춘다
+    /// (낚시터=파랑, 사냥터=주황+존 페넌트, 영지=초록). 각 관문의 패널 버튼으로 해당 공간에 진입한다.
+    ///
+    /// idempotent: 환경(LobbyEnvironment)·관문(PortalGates, 구버전 PortalBoard 포함) 루트는 지우고 재구성,
+    /// 스폰포인트·EventSystem은 없을 때만 추가. RoomScenesFactory.CreateLobby가 씬 생성 시 공통 호출하므로
+    /// 씬을 재생성해도 맵이 유지된다.
     ///
     /// 선행: VR UI 프리팹(Tools > Make Assets > VR UI (Create All)). 없으면 환경만 만들고 포탈 UI는 경고 후 생략.
     /// RULE-02: .unity 직접 작성 금지 — EditorSceneManager/씬 API로만 구성.
@@ -78,7 +84,7 @@ namespace CampLantern.EditorTools
             BuildEnvironment();
             EnsureSpawnPoint();
             ConfigureLighting();
-            EnsurePortalUI();
+            EnsurePortalGates();
             PlacePreviewCamera();
         }
 
@@ -118,9 +124,9 @@ namespace CampLantern.EditorTools
                      new Vector3(0.38f, 0.22f, 0.38f), "#7a5a34", name: "Stump");
             }
 
-            // 텐트 (스폰 왼편, 플라자를 바라보게)
-            Transform tent = Group(env, "Tent", new Vector3(-3.4f, 0f, 3.4f));
-            tent.localRotation = Quaternion.Euler(0f, 140f, 0f);
+            // 텐트 (스폰 왼편 — 낚시터 갈래길을 막지 않게 서쪽으로)
+            Transform tent = Group(env, "Tent", new Vector3(-5.2f, 0f, 1.2f));
+            tent.localRotation = Quaternion.Euler(0f, 60f, 0f);
             tent.localScale = Vector3.one * 1.6f;
             Part(tent, PrimitiveType.Cube, new Vector3(-0.3f, 0.55f, 0f),  new Vector3(0.06f, 1.1f, 1.3f), k_canvas, new Vector3(0f, 0f, 28f));
             Part(tent, PrimitiveType.Cube, new Vector3(0.3f, 0.55f, 0f),   new Vector3(0.06f, 1.1f, 1.3f), k_canvas, new Vector3(0f, 0f, -28f));
@@ -139,13 +145,7 @@ namespace CampLantern.EditorTools
             Part(pile, PrimitiveType.Cylinder, new Vector3(0.26f, 0.12f, 0f), new Vector3(0.12f, 0.45f, 0.12f), k_woodDark2, new Vector3(90f, 0f, 0f));
             Part(pile, PrimitiveType.Cylinder, new Vector3(0.13f, 0.32f, 0f), new Vector3(0.12f, 0.45f, 0.12f), k_woodDark,  new Vector3(90f, 0f, 0f));
 
-            // 디딤돌 길 (스폰 → 포탈 보드)
-            for (int i = 0; i < 4; i++)
-            {
-                Part(env, PrimitiveType.Cylinder,
-                     new Vector3(i % 2 == 0 ? 0.25f : -0.25f, 0.015f, -1.2f + i * 0.9f),
-                     new Vector3(0.4f, 0.02f, 0.4f), "#8d8d90", name: "PathStone");
-            }
+            // 디딤돌 길은 관문별 세 갈래로 EnsurePortalGates가 깐다 (GDD 그림 1 분기 구조)
 
             // 바위·수풀
             Part(env, PrimitiveType.Sphere, new Vector3(-1.8f, 0.12f, 0.3f),  new Vector3(0.5f, 0.3f, 0.45f), k_stone, name: "Rock");
@@ -228,9 +228,17 @@ namespace CampLantern.EditorTools
             return mat;
         }
 
-        // ── VR 포탈 UI ───────────────────────────────────────────────
+        // ── VR 포탈 관문 (GDD 그림 1 — 로비를 관문으로 세 활동 공간 분기) ──
 
-        private static void EnsurePortalUI()
+        // 흐름도 색 코딩: 낚시터=파랑, 사냥터=주황, 영지=초록
+        private static readonly (string label, string sceneName, Vector3 pos, string banner, Color panelTint)[] k_gates =
+        {
+            ("낚시터", "FishingGround",  new Vector3(-5.5f, 0f, 6f),   "#4a7fae", new Color(0.10f, 0.15f, 0.22f, 0.92f)),
+            ("사냥터", "HuntZone_A",     new Vector3(0f, 0f, 7.5f),    "#c77b2f", new Color(0.20f, 0.14f, 0.08f, 0.92f)),
+            ("영지",   "EstateTemplate", new Vector3(5.5f, 0f, 6f),    "#4a7a55", new Color(0.10f, 0.18f, 0.12f, 0.92f)),
+        };
+
+        private static void EnsurePortalGates()
         {
             // 씬당 EventSystem 1개 (PointableCanvasModule 포함 프리팹)
             if (Object.FindFirstObjectByType<EventSystem>() == null)
@@ -241,84 +249,126 @@ namespace CampLantern.EditorTools
                                       "Tools > Make Assets > VR UI (Create All) 먼저 실행 후 재빌드.");
             }
 
-            DestroyRootIfExists("PortalBoard");
+            DestroyRootIfExists("PortalBoard"); // 구버전 단일 안내판
+            DestroyRootIfExists("PortalGates");
 
             var panelPrefab  = AssetDatabase.LoadAssetAtPath<GameObject>(k_panelPrefabPath);
             var buttonPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(k_buttonPrefabPath);
             if (panelPrefab == null || buttonPrefab == null)
             {
-                Debug.LogWarning("[MakeAssets] VR UI 프리팹 없음 — 포탈 UI 생략(환경만 구성). " +
+                Debug.LogWarning("[MakeAssets] VR UI 프리팹 없음 — 포탈 관문 생략(환경만 구성). " +
                                  "Tools > Make Assets > VR UI (Create All) 실행 후 Build Lobby Map (VR) 재실행.");
                 return;
             }
 
-            // 나무 안내판 프레임 (패널 뒤쪽 +Z — 패널은 -Z 방향에서 읽힘 = 스폰 쪽)
-            Transform board = new GameObject("PortalBoard").transform;
-            board.position = new Vector3(0f, 0f, 2.6f);
-            Part(board, PrimitiveType.Cylinder, new Vector3(0.55f, 1.0f, 0.06f),  new Vector3(0.09f, 1.0f, 0.09f), k_wood);
-            Part(board, PrimitiveType.Cylinder, new Vector3(-0.55f, 1.0f, 0.06f), new Vector3(0.09f, 1.0f, 0.09f), k_wood);
-            Part(board, PrimitiveType.Cube,     new Vector3(0f, 2.06f, 0.06f),    new Vector3(1.35f, 0.1f, 0.12f), k_woodDark);
+            Transform gates = new GameObject("PortalGates").transform;
+            Vector3 spawnPos = new Vector3(0f, 0f, -3f); // "PlayerSpawn" 위치 — 관문이 이쪽을 바라본다
+            Vector3 plaza    = new Vector3(0f, 0f, -0.5f); // 세 갈래 길의 분기점
 
-            // 패널 — 씬 전용 구성이라 완전 언팩(샘플 버튼 치환·컨트롤러 추가 자유, 프리팹 링크 불필요)
+            foreach (var g in k_gates)
+            {
+                BuildGate(gates, g.label, g.sceneName, g.pos, spawnPos, g.banner, g.panelTint,
+                          panelPrefab, buttonPrefab);
+                LayPathStones(gates, plaza, g.pos);
+            }
+        }
+
+        /// <summary>목적지 하나당 관문 1개 — 기둥+보+테마색 현판 프레임에 단일 버튼 패널을 건다.</summary>
+        private static void BuildGate(Transform parent, string label, string sceneName, Vector3 position,
+                                      Vector3 spawnPos, string bannerHex, Color panelTint,
+                                      GameObject panelPrefab, GameObject buttonPrefab)
+        {
+            Transform gate = Group(parent, $"Gate_{sceneName}", position);
+            // 관문 정면이 스폰을 향하게 — +Z를 스폰 반대로 두면 패널(-Z에서 읽힘)이 스폰 쪽을 본다
+            Vector3 away = position - spawnPos;
+            away.y = 0f;
+            gate.rotation = Quaternion.LookRotation(away.normalized);
+
+            // 나무 프레임 + 테마색 현판 (패널 뒤쪽 +Z)
+            Part(gate, PrimitiveType.Cylinder, new Vector3(0.5f, 1.0f, 0.05f),  new Vector3(0.09f, 1.0f, 0.09f), k_wood);
+            Part(gate, PrimitiveType.Cylinder, new Vector3(-0.5f, 1.0f, 0.05f), new Vector3(0.09f, 1.0f, 0.09f), k_wood);
+            Part(gate, PrimitiveType.Cube,     new Vector3(0f, 2.02f, 0.05f),   new Vector3(1.3f, 0.1f, 0.12f),  k_woodDark);
+            Part(gate, PrimitiveType.Cube,     new Vector3(0f, 2.28f, 0.05f),   new Vector3(1.15f, 0.3f, 0.06f), bannerHex, name: "Banner");
+
+            // 사냥터 관문엔 존 페넌트 3개 (그림 1의 숲/설원/해안 존 분기 상징)
+            if (sceneName == "HuntZone_A")
+            {
+                Part(gate, PrimitiveType.Cube, new Vector3(-0.35f, 1.72f, 0.05f), new Vector3(0.16f, 0.2f, 0.04f), "#567a44", name: "Pennant"); // 숲
+                Part(gate, PrimitiveType.Cube, new Vector3(0f, 1.72f, 0.05f),     new Vector3(0.16f, 0.2f, 0.04f), "#c9d6e2", name: "Pennant"); // 설원
+                Part(gate, PrimitiveType.Cube, new Vector3(0.35f, 1.72f, 0.05f),  new Vector3(0.16f, 0.2f, 0.04f), "#d9b96a", name: "Pennant"); // 해안
+            }
+
+            // 패널 — 씬 전용 구성이라 완전 언팩(크기·버튼 치환·컨트롤러 추가 자유)
             var panelGo = (GameObject)PrefabUtility.InstantiatePrefab(panelPrefab);
             PrefabUtility.UnpackPrefabInstance(panelGo, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
             panelGo.name = "PortalPanel";
-            panelGo.transform.SetParent(board, false);
-            panelGo.transform.localPosition = new Vector3(0f, 1.45f, 0f);
-            panelGo.transform.localScale = Vector3.one * 0.002f; // 400x520px → 0.8 x 1.04 m (원거리 가독)
+            panelGo.transform.SetParent(gate, false);
+            panelGo.transform.localPosition = new Vector3(0f, 1.35f, 0f);
+            panelGo.transform.localScale = Vector3.one * 0.0018f;
+
+            // 단일 버튼용으로 축소 (400x520 → 400x300px = 0.72 x 0.54 m). 인터랙션 자식은 anchors 0-1이라 따라온다.
+            var panelRt = panelGo.GetComponent<RectTransform>();
+            panelRt.sizeDelta = new Vector2(400f, 300f);
+            panelGo.GetComponent<Image>().color = panelTint; // 흐름도 색 코딩
+
             var panel = panelGo.GetComponent<VRUIPanel>();
 
-            // 샘플 버튼 제거 후 목적지 버튼 3개 배치
+            // 샘플 버튼 제거 후 "이동" 버튼 1개
             RectTransform content = panel.Content;
             for (int i = content.childCount - 1; i >= 0; i--)
                 Object.DestroyImmediate(content.GetChild(i).gameObject);
 
-            (string label, string sceneName)[] dests =
-            {
-                ("낚시터", "FishingGround"),
-                ("사냥터", "HuntZone_A"),
-                ("영지",   "EstateTemplate"),
-            };
+            var btnGo = (GameObject)PrefabUtility.InstantiatePrefab(buttonPrefab);
+            PrefabUtility.UnpackPrefabInstance(btnGo, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+            btnGo.transform.SetParent(content, false);
+            var btnRt = btnGo.GetComponent<RectTransform>();
+            btnRt.anchorMin = new Vector2(0.5f, 1f);
+            btnRt.anchorMax = new Vector2(0.5f, 1f);
+            btnRt.pivot     = new Vector2(0.5f, 1f);
+            btnRt.anchoredPosition = new Vector2(0f, -40f);
 
-            var buttons = new VRUIButton[dests.Length];
-            for (int i = 0; i < dests.Length; i++)
-            {
-                var inst = (GameObject)PrefabUtility.InstantiatePrefab(buttonPrefab);
-                PrefabUtility.UnpackPrefabInstance(inst, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
-                inst.transform.SetParent(content, false);
+            var btnLabel = btnGo.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (btnLabel != null) btnLabel.text = "이동"; // 에디터에서도 보이게 굽기 (런타임 Push와 별개)
+            var button = btnGo.GetComponent<VRUIButton>();
 
-                var rt = inst.GetComponent<RectTransform>();
-                rt.anchorMin = new Vector2(0.5f, 1f);
-                rt.anchorMax = new Vector2(0.5f, 1f);
-                rt.pivot     = new Vector2(0.5f, 1f);
-                rt.anchoredPosition = new Vector2(0f, -16f - i * 84f);
+            // 제목도 에디터 시점에 굽는다 (버튼 제거 후 남은 TMP = Title)
+            var title = panelGo.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (title != null && title != btnLabel) title.text = label;
 
-                var tmp = inst.GetComponentInChildren<TextMeshProUGUI>(true);
-                if (tmp != null) tmp.text = dests[i].label; // 에디터에서도 보이게 굽기 (런타임 Push와 별개)
-
-                buttons[i] = inst.GetComponent<VRUIButton>();
-            }
-
-            // 컨트롤러 배선 — 라벨 Push + 클릭 → SceneManager.LoadScene
+            // 컨트롤러 배선 — 관문당 목적지 1개
             var controller = panelGo.AddComponent<PortalPanelController>();
             var so = new SerializedObject(controller);
             so.FindProperty("m_panel").objectReferenceValue = panel;
-            so.FindProperty("m_title").stringValue = "Camp Lantern";
+            so.FindProperty("m_title").stringValue = label;
 
             var btnProp = so.FindProperty("m_buttons");
-            btnProp.arraySize = buttons.Length;
-            for (int i = 0; i < buttons.Length; i++)
-                btnProp.GetArrayElementAtIndex(i).objectReferenceValue = buttons[i];
+            btnProp.arraySize = 1;
+            btnProp.GetArrayElementAtIndex(0).objectReferenceValue = button;
 
             var destProp = so.FindProperty("m_destinations");
-            destProp.arraySize = dests.Length;
-            for (int i = 0; i < dests.Length; i++)
-            {
-                var element = destProp.GetArrayElementAtIndex(i);
-                element.FindPropertyRelative("label").stringValue = dests[i].label;
-                element.FindPropertyRelative("sceneName").stringValue = dests[i].sceneName;
-            }
+            destProp.arraySize = 1;
+            var element = destProp.GetArrayElementAtIndex(0);
+            element.FindPropertyRelative("label").stringValue = "이동";
+            element.FindPropertyRelative("sceneName").stringValue = sceneName;
             so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>분기점에서 관문까지 디딤돌을 일정 간격으로 깐다 (그림 1의 갈래길 시각화).</summary>
+        private static void LayPathStones(Transform parent, Vector3 from, Vector3 to)
+        {
+            Vector3 dir = to - from;
+            dir.y = 0f;
+            float length = dir.magnitude;
+            dir /= length;
+            Vector3 side = Vector3.Cross(Vector3.up, dir); // 지그재그 오프셋용 수직 벡터
+
+            int i = 0;
+            for (float d = 1.0f; d < length - 1.0f; d += 1.1f, i++)
+            {
+                Vector3 p = from + dir * d + side * (i % 2 == 0 ? 0.18f : -0.18f);
+                Part(parent, PrimitiveType.Cylinder, new Vector3(p.x, 0.015f, p.z),
+                     new Vector3(0.38f, 0.02f, 0.38f), "#8d8d90", name: "PathStone");
+            }
         }
 
         // 데스크톱(비-VR) 프리뷰용 — VR에선 리그 카메라가 사용됨
