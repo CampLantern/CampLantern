@@ -329,7 +329,7 @@ namespace CampLantern.Bootstrap
         {
             if (!m_estateManager.CanPlace(def))
             {
-                m_lastLog = "배치 실패 — 수용량 초과";
+                Notify("배치 실패 — 수용량 초과 (회수로 자리를 비우세요)");
                 return;
             }
             if (!m_state.Shop.TryConsumeOwned(def)) return;
@@ -343,7 +343,7 @@ namespace CampLantern.Bootstrap
             }
             else
             {
-                m_lastLog = $"배치: {def.DisplayName}";
+                Notify($"배치: {def.DisplayName}");
                 m_state.Save(m_estateManager); // 배치 즉시 저장
             }
         }

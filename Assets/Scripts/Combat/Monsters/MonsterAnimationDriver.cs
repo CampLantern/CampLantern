@@ -212,7 +212,9 @@ namespace CampLantern.Combat.Monsters
             for (int i = 0; i < m_managedParams.Count; i++)
                 m_animator.SetBool(m_managedParams[i], m_managedParams[i] == param);
             m_currentParam = param;
-            Debug.Log($"[MonsterAnim] param={param} ({name})");
+            // 상태 전환 로그는 개발 검증용이었으나 Idle↔Walk 전환마다 찍혀 콘솔 스팸(QA 스윕에서 세션당 48건)
+            // — 필요 시 아래 주석을 임시 해제해 사용.
+            // Debug.Log($"[MonsterAnim] param={param} ({name})");
         }
 
         private void CollectManaged(string param)
