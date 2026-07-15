@@ -1,3 +1,4 @@
+using Oculus.Avatar2;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -47,7 +48,14 @@ namespace CampLantern.Player
                                "PersistentPlayerFactory(Tools > Make Assets > Persistent Player) 실행 필요");
                 return;
             }
-            Instantiate(prefab);
+            var player = Instantiate(prefab);
+
+            // 아바타 SDK 로그 억제 — OvrAvatarManager 기본 로그 레벨이 Verbose라 Info 홍수 +
+            // ClipUpgradeHelper 경고 스팸(SDK 40.x 내장 클립의 알려진 노이즈)이 콘솔을 뒤덮는다.
+            // Failure(→ELogLevel.Error)로 낮춰 에러만 통과시킨다. 아바타 문제 디버깅 시 이 값을 임시로 낮출 것.
+            var avatarManager = player.GetComponentInChildren<OvrAvatarManager>();
+            if (avatarManager != null)
+                avatarManager.SetLogLevel(CAPI.ovrAvatar2LogLevel.Failure);
         }
 
         private void Awake()

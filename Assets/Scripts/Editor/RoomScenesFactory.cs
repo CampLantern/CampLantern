@@ -59,6 +59,9 @@ namespace CampLantern.EditorTools
             SetString(harness, "m_huntSceneName", "HuntZone_A");
             SetString(harness, "m_estateSceneName", "EstateTemplate");
 
+            // VR 로비 맵 — 캠프장 환경·스폰포인트·포탈 UI(LobbyMapFactory). 씬 재생성 시에도 맵 유실 없음.
+            LobbyMapFactory.BuildIntoOpenScene();
+
             SaveSceneAndRegister(scene, k_lobbyScenePath);
         }
 

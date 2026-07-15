@@ -69,8 +69,53 @@ namespace CampLantern.EditorTools
         }
 
         /// <summary>
+        /// 중복 컨트롤러 비주얼 정리 — OVRComprehensiveInteractionRig(Add Interaction To VR Rig)가 자체
+        /// ControllerVisual을 포함하므로, 이 팩토리가 손 앵커에 붙였던 Core SDK 컨트롤러 모델
+        /// (OVRControllerPrefab/OVRControllerHelper)과 이중 렌더된다. 정지 시엔 겹쳐 보이지만
+        /// 이동/회전 시 두 비주얼의 갱신 타이밍 차이로 "늦게 따라오는" 고스트 컨트롤러가 보인다.
+        /// 레이/그랩/버튼 애니메이션과 통합된 Interaction SDK 비주얼을 남기고 Core SDK 모델을 비활성화한다.
+        /// idempotent — 이미 꺼져 있으면 변경 없음.
+        /// </summary>
+        [MenuItem("Tools/Make Assets/Fix Duplicate Controller Visuals (VR Rig)")]
+        public static void DisableCoreControllerModels()
+        {
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(k_path) == null)
+            {
+                Debug.LogError($"[MakeAssets] VRPlayerRig 없음: {k_path}");
+                return;
+            }
+
+            GameObject root = PrefabUtility.LoadPrefabContents(k_path);
+            try
+            {
+                int disabled = 0;
+                foreach (var helper in root.GetComponentsInChildren<OVRControllerHelper>(true))
+                {
+                    if (!helper.gameObject.activeSelf) continue;
+                    helper.gameObject.SetActive(false);
+                    disabled++;
+                }
+
+                if (disabled > 0)
+                {
+                    PrefabUtility.SaveAsPrefabAsset(root, k_path);
+                    Debug.Log($"[MakeAssets] Core SDK 컨트롤러 모델 {disabled}개 비활성화 — " +
+                              "Interaction SDK ControllerVisual만 렌더됨 (고스트 컨트롤러 해소)");
+                }
+                else
+                {
+                    Debug.Log("[MakeAssets] 이미 정리됨(변경 없음) — 활성 OVRControllerHelper 모델 없음");
+                }
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+            AssetDatabase.Refresh();
+        }
+
+        /// <summary>
         /// 손 앵커 아래에 컨트롤러 프리팹 인스턴스를 붙이고 좌/우(m_controller)를 설정한다.
         /// 패키지 프리팹을 못 찾으면 경고만 남기고 건너뛴다 — 리그 본체는 그대로 저장된다.
+        /// 주의: 인터랙션 리그(Add Interaction To VR Rig)를 쓰면 이 모델은 중복이라 꺼야 한다
+        /// (Fix Duplicate Controller Visuals 메뉴).
         /// </summary>
         private static void AttachController(Transform handAnchor, OVRInput.Controller side, string label)
         {
