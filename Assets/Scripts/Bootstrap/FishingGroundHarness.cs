@@ -37,6 +37,7 @@ namespace CampLantern.Bootstrap
         private PlayerMute m_mute;
         private InventoryPanel m_inventoryPanel;
         private FishResultPanel m_resultPanel;
+        private WristHud m_wristHud; // 리그(DontDestroyOnLoad)에 붙어서 씬 이탈 시 직접 파괴해야 함
         private int m_xp; // TODO(DATA): XP 용처·저장 미정(§9) — 세션 로컬 누적 표시만
 
         private void Awake()
@@ -72,6 +73,19 @@ namespace CampLantern.Bootstrap
                 m_resultPanel.Confirmed += OnResultConfirmed;
             }
 
+            // 세션·음소거 소셜 패널 (P0 판정: 음소거 토글) — Resources 로드라 씬 배선 불필요
+            var socialPrefab = Resources.Load<SocialPanel>("SocialPanel");
+            if (socialPrefab != null)
+            {
+                var social = Instantiate(socialPrefab);
+                social.transform.position = new Vector3(-1.8f, 1.4f, -0.6f); // 스폰 왼편 (빌보드라 회전 불필요)
+                social.Bind(m_launcher, m_voice, m_mute);
+            }
+
+            // 손목 HUD — 코인 + 낚시 소모품(미끼·내구도). 리그(DontDestroyOnLoad)에 붙으므로 파괴는 하네스 책임
+            m_wristHud = WristHud.Spawn(m_state.Wallet,
+                () => $"미끼 {m_rod.BaitCount} · 내구도 {m_rod.Rod.durability}/{m_rod.Rod.maxDurability}");
+
             // VR 입력 어댑터 — 씬에 없으면 낚싯대에 부착 (Awake에서 rod/spot 자동 해석)
             if (FindFirstObjectByType<FishingRodInput>() == null)
                 m_rod.gameObject.AddComponent<FishingRodInput>();
@@ -89,6 +103,7 @@ namespace CampLantern.Bootstrap
         {
             m_rod.FishCaught -= OnFishCaught;
             if (m_resultPanel != null) m_resultPanel.Confirmed -= OnResultConfirmed;
+            if (m_wristHud != null) Destroy(m_wristHud.gameObject); // 리그에 붙어 있어 씬 언로드로 안 죽는다
         }
 
         private void OnResultConfirmed() => m_resultPanel.Hide();

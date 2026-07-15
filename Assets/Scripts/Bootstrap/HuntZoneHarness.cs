@@ -7,6 +7,7 @@ using CampLantern.Core.Persistence;
 using CampLantern.Hunting;
 using CampLantern.Networking;
 using CampLantern.Networking.Voice;
+using CampLantern.UI;
 using Fusion;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -36,6 +37,7 @@ namespace CampLantern.Bootstrap
 
         private VoiceController m_voice;
         private PlayerMute m_mute;
+        private WristHud m_wristHud; // 리그(DontDestroyOnLoad)에 붙어서 씬 이탈 시 직접 파괴해야 함
 
         private readonly List<HuntTarget> m_huntTargets = new List<HuntTarget>();        // 훅한 사냥감들(사슴+멧돼지)
         private readonly HashSet<HuntLedger> m_hookedLedgers = new HashSet<HuntLedger>(); // 보상 중복 구독 방지
@@ -63,6 +65,18 @@ namespace CampLantern.Bootstrap
             m_voice = m_launcher.GetComponent<VoiceController>();
             m_mute  = m_launcher.GetComponent<PlayerMute>();
 
+            // 세션·음소거 소셜 패널 (P0 판정: 음소거 토글) — Resources 로드라 씬 배선 불필요
+            var socialPrefab = Resources.Load<SocialPanel>("SocialPanel");
+            if (socialPrefab != null)
+            {
+                var social = Instantiate(socialPrefab);
+                social.transform.position = new Vector3(-2f, 1.4f, -1.5f); // 스폰 왼편 (빌보드라 회전 불필요)
+                social.Bind(m_launcher, m_voice, m_mute);
+            }
+
+            // 손목 HUD — 코인. 리그(DontDestroyOnLoad)에 붙으므로 파괴는 하네스 책임
+            m_wristHud = WristHud.Spawn(m_state.Wallet);
+
             m_launcher.SessionStarted -= OnSessionStarted;
             m_launcher.SessionStarted += OnSessionStarted;
         }
@@ -71,6 +85,8 @@ namespace CampLantern.Bootstrap
         {
             m_launcher.SessionStarted -= OnSessionStarted;
             UnhookAllHuntTargets();
+
+            if (m_wristHud != null) Destroy(m_wristHud.gameObject); // 리그에 붙어 있어 씬 언로드로 안 죽는다
 
             if (m_dummyRunner != null && m_dummyRunner.IsRunning)
                 m_dummyRunner.Shutdown();
@@ -107,6 +123,15 @@ namespace CampLantern.Bootstrap
                     m_netMonsters.Add(m);
                     m.RewardGranted -= OnRewardGranted;
                     m.RewardGranted += OnRewardGranted;
+
+                    // 머리 위 HP 게이지 — HuntTarget과 동일 UI, 값 소스만 다름
+                    HuntTargetDef monsterDef = m.Health != null && m.Health.Data != null ? m.Health.Data.huntDef : null;
+                    HuntHealthGauge.Attach(m,
+                        monsterDef != null ? monsterDef.DisplayName : "전투 몬스터",
+                        () => m.NetCurrentHp,
+                        () => Mathf.Max(1, m.NetMaxHp),
+                        () => m.HuntActive,
+                        monsterDef != null ? monsterDef.RequiredParticipants : 1);
                 }
         }
 
@@ -155,6 +180,14 @@ namespace CampLantern.Bootstrap
                 ledger.RewardGranted -= OnRewardGranted;
                 ledger.RewardGranted += OnRewardGranted;
             }
+
+            // 머리 위 HP 게이지 (IMGUI HP 라벨의 VR 대체) — 대상 despawn 시 게이지가 자멸한다
+            HuntHealthGauge.Attach(target,
+                target.Def != null ? target.Def.DisplayName : "사냥감",
+                () => target.CurrentHealth,
+                () => target.Def != null ? target.Def.MaxHealth : 100,
+                () => target.HuntActive,
+                target.Def != null ? target.Def.RequiredParticipants : 1);
         }
 
         private void UnhookAllHuntTargets()

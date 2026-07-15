@@ -6,6 +6,7 @@ using CampLantern.Core;
 using CampLantern.Core.Persistence;
 using CampLantern.Estate;
 using CampLantern.Networking;
+using CampLantern.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -33,6 +34,7 @@ namespace CampLantern.Bootstrap
 
         private bool m_joining;
         private string m_lastLog = "-";
+        private WristHud m_wristHud; // 리그(DontDestroyOnLoad)에 붙어서 씬 이탈 시 직접 파괴해야 함
 
         /// <summary>테스트/디버그 조회용 — 저장 라운드트립 자동 검증에 사용.</summary>
         public PlayerState State => m_state;
@@ -53,6 +55,9 @@ namespace CampLantern.Bootstrap
 
         private void Start()
         {
+            // 손목 HUD — 코인 (구매/판매 피드백). 리그(DontDestroyOnLoad)에 붙으므로 파괴는 하네스 책임
+            m_wristHud = WristHud.Spawn(m_state.Wallet);
+
             m_pot.Initialize(m_state.Inventory);
             m_pot.Cooked -= OnCooked;
             m_pot.Cooked += OnCooked;
@@ -83,6 +88,7 @@ namespace CampLantern.Bootstrap
         private void OnDestroy()
         {
             m_pot.Cooked -= OnCooked;
+            if (m_wristHud != null) Destroy(m_wristHud.gameObject); // 리그에 붙어 있어 씬 언로드로 안 죽는다
         }
 
         private void OnApplicationQuit()
