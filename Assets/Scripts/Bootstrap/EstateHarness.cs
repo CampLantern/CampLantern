@@ -37,6 +37,7 @@ namespace CampLantern.Bootstrap
         private WristHud m_wristHud; // 리그(DontDestroyOnLoad)에 붙어서 씬 이탈 시 직접 파괴해야 함
         private ActionListPanel m_shopPanel; // 상점·배치 (그림 3 소셜존 동선 옆)
         private ActionListPanel m_cookPanel; // 요리·판매 (냄비 옆)
+        private ToastHud m_toast;            // 시야 하단 알림 — 리그 부착이라 하네스가 파괴 책임
 
         /// <summary>테스트/디버그 조회용 — 저장 라운드트립 자동 검증에 사용.</summary>
         public PlayerState State => m_state;
@@ -59,6 +60,7 @@ namespace CampLantern.Bootstrap
         {
             // 손목 HUD — 코인 (구매/판매 피드백). 리그(DontDestroyOnLoad)에 붙으므로 파괴는 하네스 책임
             m_wristHud = WristHud.Spawn(m_state.Wallet);
+            m_toast = ToastHud.Spawn(); // 구매/판매/조리 결과 알림
 
             // 상점·배치 / 요리·판매 VR 패널 — IMGUI 블록의 실사용 대체 (Resources 로드, 씬 배선 불필요)
             var listPrefab = Resources.Load<ActionListPanel>("ActionListPanel");
@@ -112,6 +114,14 @@ namespace CampLantern.Bootstrap
             m_pot.Cooked -= OnCooked;
             if (m_state != null) m_state.Inventory.Changed -= RefreshVrPanels;
             if (m_wristHud != null) Destroy(m_wristHud.gameObject); // 리그에 붙어 있어 씬 언로드로 안 죽는다
+            if (m_toast != null) Destroy(m_toast.gameObject);
+        }
+
+        // IMGUI 로그와 VR 토스트 동시 알림 — 결과 피드백은 항상 이 헬퍼를 거친다
+        private void Notify(string message)
+        {
+            m_lastLog = message;
+            if (m_toast != null) m_toast.Show(message);
         }
 
         private void OnApplicationQuit()
@@ -127,7 +137,7 @@ namespace CampLantern.Bootstrap
 
         private void OnCooked(ItemDef result)
         {
-            m_lastLog = $"조리 결과: {result.DisplayName}";
+            Notify($"조리 결과: {result.DisplayName}");
             m_state.Save(m_estateManager); // OS 강제종료 대비 — 재료 소모·결과물 반영 즉시 저장
         }
 
@@ -295,7 +305,7 @@ namespace CampLantern.Bootstrap
         private void PurchaseDef(EstateObjectDef def)
         {
             bool purchased = m_state.Shop.TryPurchase(def);
-            m_lastLog = purchased ? $"구매: {def.DisplayName}" : "구매 실패 (재화 부족)";
+            Notify(purchased ? $"구매: {def.DisplayName}" : "구매 실패 (재화 부족)");
             if (purchased) m_state.Save(m_estateManager); // 구매 즉시 저장
         }
 
@@ -303,6 +313,7 @@ namespace CampLantern.Bootstrap
         {
             if (!m_state.Inventory.TryRemove(item)) return;
             m_state.Wallet.Add(item.SellPrice);
+            Notify($"판매: {item.DisplayName} +{item.SellPrice}c");
             m_state.Save(m_estateManager); // 판매 즉시 저장
         }
 
@@ -310,6 +321,7 @@ namespace CampLantern.Bootstrap
         {
             if (m_estateManager.PlacedObjects.Count == 0) return;
             m_estateManager.Remove(m_estateManager.PlacedObjects[m_estateManager.PlacedObjects.Count - 1]);
+            Notify("배치물 회수 — 보유 목록으로 반환");
             m_state.Save(m_estateManager); // 회수(보유 반환) 즉시 저장
         }
 

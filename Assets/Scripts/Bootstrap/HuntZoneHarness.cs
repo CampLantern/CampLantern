@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using CampLantern.Combat;
+using CampLantern.Combat.Player;
 using CampLantern.Core;
 using CampLantern.Core.Persistence;
 using CampLantern.Hunting;
@@ -38,6 +39,8 @@ namespace CampLantern.Bootstrap
         private VoiceController m_voice;
         private PlayerMute m_mute;
         private WristHud m_wristHud; // 리그(DontDestroyOnLoad)에 붙어서 씬 이탈 시 직접 파괴해야 함
+        private ToastHud m_toast;    // 시야 하단 알림 — 리그 부착이라 하네스가 파괴 책임
+        private PlayerHealth m_localHealth; // 손목 HUD 전투 줄용 — 스폰이 늦어 지연 해석
 
         private readonly List<HuntTarget> m_huntTargets = new List<HuntTarget>();        // 훅한 사냥감들(사슴+멧돼지)
         private readonly HashSet<HuntLedger> m_hookedLedgers = new HashSet<HuntLedger>(); // 보상 중복 구독 방지
@@ -74,8 +77,9 @@ namespace CampLantern.Bootstrap
                 social.Bind(m_launcher, m_voice, m_mute);
             }
 
-            // 손목 HUD — 코인. 리그(DontDestroyOnLoad)에 붙으므로 파괴는 하네스 책임
-            m_wristHud = WristHud.Spawn(m_state.Wallet);
+            // 손목 HUD — 코인 + 전투 상태(내 HP·다운). 리그(DontDestroyOnLoad)에 붙으므로 파괴는 하네스 책임
+            m_wristHud = WristHud.Spawn(m_state.Wallet, CombatStatusLine);
+            m_toast = ToastHud.Spawn(); // 사냥 보상 알림
 
             m_launcher.SessionStarted -= OnSessionStarted;
             m_launcher.SessionStarted += OnSessionStarted;
@@ -87,6 +91,7 @@ namespace CampLantern.Bootstrap
             UnhookAllHuntTargets();
 
             if (m_wristHud != null) Destroy(m_wristHud.gameObject); // 리그에 붙어 있어 씬 언로드로 안 죽는다
+            if (m_toast != null) Destroy(m_toast.gameObject);
 
             if (m_dummyRunner != null && m_dummyRunner.IsRunning)
                 m_dummyRunner.Shutdown();
@@ -208,7 +213,18 @@ namespace CampLantern.Bootstrap
             if (def.RewardMaterials == null) return;
             foreach (ItemDef material in def.RewardMaterials) m_state.Inventory.Add(material);
             m_lastLog = $"사냥 보상 지급: {def.DisplayName}";
+            if (m_toast != null) m_toast.Show(m_lastLog);
             m_state.Save(); // OS 강제종료 대비 — 보상 즉시 저장 (낚시 포획 저장과 동일 정책)
+        }
+
+        // 손목 HUD 둘째 줄 — 전투 존재(PlayerHealth)는 세션 시작 후 스폰되므로 찾을 때까지 지연 해석
+        private string CombatStatusLine()
+        {
+            if (m_localHealth == null) m_localHealth = FindFirstObjectByType<PlayerHealth>();
+            if (m_localHealth == null) return "존A · 숲";
+            return m_localHealth.IsDowned
+                ? "다운! 소생 대기"
+                : $"HP {m_localHealth.CurrentHp}/{m_localHealth.MaxHp}";
         }
 
         private async Task JoinAsync()

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -67,6 +68,8 @@ namespace CampLantern.UI
                 if (m_buttons[i] != null) m_buttons[i].Clicked -= m_handlers[i];
         }
 
+        private bool m_loading; // 페이드 중 중복 클릭 방지
+
         private void LoadDestination(int index)
         {
             string sceneName = m_destinations[index].sceneName;
@@ -75,6 +78,25 @@ namespace CampLantern.UI
                 Debug.LogWarning($"[PortalPanel] 목적지 씬 이름이 비어 있음 (index {index})");
                 return;
             }
+            if (m_loading) return;
+
+            // 씬 전환 페이드 아웃 — 검은 플래시 방지. 페이드 인은 PersistentPlayer가 로드 후 트리거.
+            var fade = OVRScreenFade.instance;
+            if (fade != null)
+            {
+                m_loading = true;
+                StartCoroutine(FadeAndLoad(fade, sceneName));
+            }
+            else
+            {
+                SceneManager.LoadScene(sceneName); // 페이드 미배선(데스크톱 등) — 즉시 이동
+            }
+        }
+
+        private IEnumerator FadeAndLoad(OVRScreenFade fade, string sceneName)
+        {
+            fade.FadeOut();
+            yield return new WaitForSeconds(fade.fadeTime);
             SceneManager.LoadScene(sceneName);
         }
     }

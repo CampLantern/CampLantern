@@ -39,6 +39,7 @@ namespace CampLantern.Bootstrap
         private FishResultPanel m_resultPanel;
         private WristHud m_wristHud; // 리그(DontDestroyOnLoad)에 붙어서 씬 이탈 시 직접 파괴해야 함
         private ActionListPanel m_shopPanel; // 낚시 상점 (미끼 구매·수리)
+        private ToastHud m_toast;            // 시야 하단 알림 — 리그 부착이라 하네스가 파괴 책임
         private int m_xp; // TODO(DATA): XP 용처·저장 미정(§9) — 세션 로컬 누적 표시만
 
         private void Awake()
@@ -87,6 +88,8 @@ namespace CampLantern.Bootstrap
             m_wristHud = WristHud.Spawn(m_state.Wallet,
                 () => $"미끼 {m_rod.BaitCount} · 내구도 {m_rod.Rod.durability}/{m_rod.Rod.maxDurability}");
 
+            m_toast = ToastHud.Spawn(); // 구매/수리 결과 알림
+
             // 낚시 상점 패널 — 미끼 구매·수리 (IMGUI 버튼의 VR 대체)
             var listPrefab = Resources.Load<ActionListPanel>("ActionListPanel");
             if (listPrefab != null)
@@ -115,6 +118,14 @@ namespace CampLantern.Bootstrap
             m_rod.FishCaught -= OnFishCaught;
             if (m_resultPanel != null) m_resultPanel.Confirmed -= OnResultConfirmed;
             if (m_wristHud != null) Destroy(m_wristHud.gameObject); // 리그에 붙어 있어 씬 언로드로 안 죽는다
+            if (m_toast != null) Destroy(m_toast.gameObject);
+        }
+
+        // IMGUI 로그와 VR 토스트 동시 알림 — 결과 피드백은 항상 이 헬퍼를 거친다
+        private void Notify(string message)
+        {
+            m_lastLog = message;
+            if (m_toast != null) m_toast.Show(message);
         }
 
         private void OnResultConfirmed() => m_resultPanel.Hide();
@@ -177,11 +188,11 @@ namespace CampLantern.Bootstrap
             int price = FishingFormulas.BaitPrice() * quantity;
             if (!m_state.Wallet.TrySpend(price))
             {
-                m_lastLog = $"미끼 구매 실패 — 코인 부족 ({price}c 필요)";
+                Notify($"미끼 구매 실패 — 코인 부족 ({price}c 필요)");
                 return;
             }
             m_rod.AddBait(quantity);
-            m_lastLog = $"미끼 {quantity}개 구매 (-{price}c)";
+            Notify($"미끼 {quantity}개 구매 (-{price}c)");
             m_state.Save();
         }
 
@@ -191,11 +202,11 @@ namespace CampLantern.Bootstrap
             int price = FishingFormulas.RepairPrice(m_rod.Rod.durability);
             if (!m_state.Wallet.TrySpend(price))
             {
-                m_lastLog = $"수리 실패 — 코인 부족 ({price}c 필요)";
+                Notify($"수리 실패 — 코인 부족 ({price}c 필요)");
                 return;
             }
             m_rod.Repair();
-            m_lastLog = $"낚싯대 수리 완료 (-{price}c)";
+            Notify($"낚싯대 수리 완료 (-{price}c)");
             m_state.Save();
         }
 

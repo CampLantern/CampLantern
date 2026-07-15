@@ -56,6 +56,17 @@ namespace CampLantern.Player
             var avatarManager = player.GetComponentInChildren<OvrAvatarManager>();
             if (avatarManager != null)
                 avatarManager.SetLogLevel(CAPI.ovrAvatar2LogLevel.Failure);
+
+            // 씬 전환 페이드 — 중앙 눈 카메라에 OVRScreenFade 부착 (검은 플래시 방지, room-architecture 공간 전환).
+            // 페이드 인은 최초엔 fadeOnStart, 이후 씬 로드는 OnSceneLoaded에서 트리거 (OnLevelFinishedLoading은
+            // 레거시 메시지라 자동 발화하지 않음). 페이드 아웃은 PortalPanelController가 이동 직전에 건다.
+            var camRig = player.GetComponentInChildren<OVRCameraRig>();
+            if (camRig != null && camRig.centerEyeAnchor != null &&
+                camRig.centerEyeAnchor.GetComponent<OVRScreenFade>() == null)
+            {
+                var fade = camRig.centerEyeAnchor.gameObject.AddComponent<OVRScreenFade>();
+                fade.fadeTime = 0.35f; // 기본 2초는 이동이 답답 — TODO(TUNING)
+            }
         }
 
         private void Awake()
@@ -93,7 +104,11 @@ namespace CampLantern.Player
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             // Single 로드(공간 전환)에서만 재배치. Additive는 환경 로드일 수 있어 건드리지 않는다.
-            if (mode == LoadSceneMode.Single) MoveToSpawnPoint();
+            if (mode != LoadSceneMode.Single) return;
+            MoveToSpawnPoint();
+
+            // 포탈 이동으로 페이드 아웃된 화면 복귀 (리그가 영속이라 페이드 상태도 씬을 넘어온다)
+            if (OVRScreenFade.instance != null) OVRScreenFade.instance.FadeIn();
         }
 
         /// <summary>로드된 씬의 스폰포인트로 리그 루트를 이동. 없으면 현재 위치 유지.</summary>
