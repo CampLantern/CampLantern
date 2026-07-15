@@ -76,6 +76,11 @@ namespace CampLantern.Bootstrap
             if (FindFirstObjectByType<FishingRodInput>() == null)
                 m_rod.gameObject.AddComponent<FishingRodInput>();
 
+            // VR 원거리 그랩 — 손 그랩 라인으로 낚싯대를 집는다. 반드시 FishingRodInput 뒤에 부착
+            // (RodGrabber.Start가 입력 어댑터를 찾아 "든 동안에만 제스처" 게이트를 건다)
+            if (FindFirstObjectByType<RodGrabber>() == null)
+                m_rod.gameObject.AddComponent<RodGrabber>();
+
             m_rod.FishCaught -= OnFishCaught;
             m_rod.FishCaught += OnFishCaught;
         }
