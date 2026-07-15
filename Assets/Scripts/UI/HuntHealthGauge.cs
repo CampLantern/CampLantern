@@ -49,9 +49,10 @@ namespace CampLantern.UI
             gauge.m_getActive   = getActive;
             gauge.m_needPlayers = needPlayers;
 
-            // 머리 위 높이 — 렌더러 바운드 최고점 + 여유. 렌더러가 없으면 2m 고정.
+            // 머리 위 높이 — 렌더러 바운드 최고점 + 여유. 최소 0.5m(렌더러 없거나 바닥에 붙은 경우 대비).
+            // 주의: 초기값을 크게 잡으면 멧돼지처럼 작은 동물의 게이지가 공중에 뜬다 (플레이 검증에서 발견).
             var renderers = target.GetComponentsInChildren<Renderer>();
-            float top = 2f;
+            float top = 0.5f;
             foreach (Renderer r in renderers)
                 top = Mathf.Max(top, r.bounds.max.y - target.transform.position.y);
             gauge.m_heightOffset = top + 0.35f;
