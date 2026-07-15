@@ -115,6 +115,9 @@ namespace CampLantern.EditorTools
             SetString(harness, "m_lobbySceneName", "Lobby");
             SetString(harness, "m_shardId", "shard0");
 
+            // VR 맵 — 호숫가 환경·스폰·귀환 관문 (RoomMapsFactory). 씬 재생성 시에도 맵 유실 없음.
+            RoomMapsFactory.BuildFishingGroundIntoOpenScene();
+
             SaveSceneAndRegister(scene, k_fishingScenePath);
         }
 
@@ -144,6 +147,9 @@ namespace CampLantern.EditorTools
             SetHuntPrefabs(harness); // 사슴+멧돼지+곰(존재하는 것) 배열 배선
             SetString(harness, "m_lobbySceneName", "Lobby");
             SetString(harness, "m_zoneId", "a");
+
+            // VR 맵 — 존A 숲 환경·스폰·귀환 관문 (RoomMapsFactory)
+            RoomMapsFactory.BuildHuntZoneIntoOpenScene();
 
             SaveSceneAndRegister(scene, k_huntScenePath);
         }
@@ -191,6 +197,9 @@ namespace CampLantern.EditorTools
                 LoadRequired<EstateObjectDef>("Assets/Data/Estate/Estate_Planter.asset"),
                 LoadRequired<EstateObjectDef>("Assets/Data/Estate/Estate_Deck.asset"),
                 LoadRequired<EstateObjectDef>("Assets/Data/Estate/Estate_Campfire.asset"));
+
+            // VR 맵 — 그림 3 레이아웃(필지·소셜존·트로피룸 등)·스폰·귀환 관문 (RoomMapsFactory)
+            RoomMapsFactory.BuildEstateIntoOpenScene();
 
             SaveSceneAndRegister(scene, k_estateScenePath);
         }

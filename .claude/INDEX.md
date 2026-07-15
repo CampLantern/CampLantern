@@ -65,7 +65,7 @@ GDD엔 없는 세션 결정 사항 — Photon Fusion 2 vs PUN 2, Meta Avatars SD
 
 ### [domain/room-architecture.md](domain/room-architecture.md)
 Photon Room 공간 구조 — 로비/낚시터/사냥터/영지 4개 공간, 저장 데이터와 실시간 Room 분리.
-- **keywords:** Room, roomName, estate_, 로비, 낚시터, 사냥터, 존 분할, zone, 샤딩, sharding, 마스터 클라이언트, 서버 권한, authoritative, 파티 연속성, 오프라인 방문, StartSession, SceneLauncher, LobbyHarness, FishingGroundHarness, HuntZoneHarness, EstateHarness, fishing_shard, hunt_zone_a, deviceUniqueIdentifier, SaveService, PlayerState, ContentRegistry, player_save.json, persistentDataPath, JSON 저장, 즉시 저장, 저장 타이밍, OnApplicationQuit, 강제종료, 포탈, portal, PortalPanelController, LobbyMapFactory, 로비 맵, VR 허브, PlayerSpawn, 스폰포인트, PlayerSpawnPoint
+- **keywords:** Room, roomName, estate_, 로비, 낚시터, 사냥터, 존 분할, zone, 샤딩, sharding, 마스터 클라이언트, 서버 권한, authoritative, 파티 연속성, 오프라인 방문, StartSession, SceneLauncher, LobbyHarness, FishingGroundHarness, HuntZoneHarness, EstateHarness, fishing_shard, hunt_zone_a, deviceUniqueIdentifier, SaveService, PlayerState, ContentRegistry, player_save.json, persistentDataPath, JSON 저장, 즉시 저장, 저장 타이밍, OnApplicationQuit, 강제종료, 포탈, portal, PortalPanelController, LobbyMapFactory, RoomMapsFactory, MapBuildUtil, 로비 맵, 씬 맵, 맵 구성, VR 허브, 귀환 관문, PlayerSpawn, 스폰포인트, PlayerSpawnPoint
 - **when to read:** 씬 전환, 매칭, Room 생성/파괴, 파티 시스템 관련 작업 시
 
 ### [domain/estate-system.md](domain/estate-system.md)

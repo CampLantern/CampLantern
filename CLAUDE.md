@@ -56,7 +56,7 @@ GDD 원본: `.claude/domain/gdd/VR_코지_소셜_영지_게임_기획서.docx` (
 `.asset`·`.prefab`·`.unity`를 직접 편집하지 않고 Editor 팩토리 스크립트(`Assets/Scripts/Editor/`, `CampLantern.EditorTools`)로 Unity가 생성하게 한다. Unity 메뉴에서 실행:
 
 - **Tools > Make Assets > Content Registry** — `Assets/Data`를 스캔해 `Assets/Resources/ContentRegistry.asset` 갱신 (`ContentRegistryFactory`). **콘텐츠 데이터(ItemDef/EstateObjectDef 등) 추가 후 반드시 재실행.**
-- **P0 데이터/씬 생성** — `P0DataFactory`(어종·레시피·영지 오브젝트 SO), `P0PlaySceneFactory`(단일 씬 플레이 하네스 배선), `RoomScenesFactory`(로비/낚시터/사냥터/영지 Room 씬), `LobbyMapFactory`(**Build Lobby Map (VR)** — 로비 캠프장 환경·석양 라이팅·스폰·포탈 UI, idempotent, `CreateLobby`가 공통 호출), `VoicePlayerFactory`. 실행 진입점은 `P0PlayTestMenu` / `RoomScenesPlayTestMenu`.
+- **P0 데이터/씬 생성** — `P0DataFactory`(어종·레시피·영지 오브젝트 SO), `P0PlaySceneFactory`(단일 씬 플레이 하네스 배선), `RoomScenesFactory`(로비/낚시터/사냥터/영지 Room 씬), `LobbyMapFactory`(**Build Lobby Map (VR)** — 로비 캠프장 환경·석양 라이팅·스폰·포탈 관문, idempotent, `CreateLobby`가 공통 호출), `RoomMapsFactory`(**Build All Room Maps (VR)** — 낚시터/사냥터/영지 VR 맵 + 로비 귀환 관문, 각 CreateXxx가 공통 호출, 공용 헬퍼 `MapBuildUtil`), `VoicePlayerFactory`. 실행 진입점은 `P0PlayTestMenu` / `RoomScenesPlayTestMenu`.
 - **프리팹 생성** — `VRPlayerRigFactory`(VR 리그), `StationFactory`(낚시/요리 스테이션), `VRUIFactory`(VR UI 세트: 패널·버튼·EventSystem, `Import TMP Essentials`·`Add Interaction To VR Rig` 메뉴 포함). 전부 `Tools > Make Assets` 아래.
 - 새 콘텐츠·씬이 필요하면 이 팩토리를 확장하거나 `/make-assets` 스킬로 새 Editor 스크립트를 작성한다.
 
