@@ -38,6 +38,7 @@ namespace CampLantern.Bootstrap
         private InventoryPanel m_inventoryPanel;
         private FishResultPanel m_resultPanel;
         private WristHud m_wristHud; // 리그(DontDestroyOnLoad)에 붙어서 씬 이탈 시 직접 파괴해야 함
+        private ActionListPanel m_shopPanel; // 낚시 상점 (미끼 구매·수리)
         private int m_xp; // TODO(DATA): XP 용처·저장 미정(§9) — 세션 로컬 누적 표시만
 
         private void Awake()
@@ -86,6 +87,16 @@ namespace CampLantern.Bootstrap
             m_wristHud = WristHud.Spawn(m_state.Wallet,
                 () => $"미끼 {m_rod.BaitCount} · 내구도 {m_rod.Rod.durability}/{m_rod.Rod.maxDurability}");
 
+            // 낚시 상점 패널 — 미끼 구매·수리 (IMGUI 버튼의 VR 대체)
+            var listPrefab = Resources.Load<ActionListPanel>("ActionListPanel");
+            if (listPrefab != null)
+            {
+                m_shopPanel = Instantiate(listPrefab);
+                m_shopPanel.transform.position = new Vector3(2.4f, 1.5f, -2.4f); // 부두 입구 랜턴 옆
+                m_shopPanel.SetTitle("낚시 상점");
+                RefreshShopPanel();
+            }
+
             // VR 입력 어댑터 — 씬에 없으면 낚싯대에 부착 (Awake에서 rod/spot 자동 해석)
             if (FindFirstObjectByType<FishingRodInput>() == null)
                 m_rod.gameObject.AddComponent<FishingRodInput>();
@@ -129,12 +140,35 @@ namespace CampLantern.Bootstrap
             m_lastLog = $"낚음: {displayName} ({fish.Length:F1}cm)";
             if (m_resultPanel != null) m_resultPanel.Show(fish, reward, displayName);
             m_state.Save();
+            RefreshShopPanel(); // 포획으로 내구도가 깎였을 수 있음 — 수리 가격 갱신
         }
 
         private void ReturnToLobby()
         {
             m_state.Save();
             SceneManager.LoadScene(m_lobbySceneName);
+        }
+
+        // 낚시 상점 VR 패널 행 재구성 — 구매/수리/포획 후 호출 (미끼는 캐스팅 소모라 손목 HUD가 실시간 담당)
+        private void RefreshShopPanel()
+        {
+            if (m_shopPanel == null) return;
+            int repairPrice = FishingFormulas.RepairPrice(m_rod.Rod.durability);
+            m_shopPanel.SetRows(new List<ActionListPanel.RowSpec>
+            {
+                new ActionListPanel.RowSpec
+                {
+                    label = $"미끼 {m_rod.BaitCount}개 보유",
+                    button1 = $"5개 {FishingFormulas.BaitPrice() * 5}c",
+                    onButton1 = () => { BuyBait(5); RefreshShopPanel(); },
+                },
+                new ActionListPanel.RowSpec
+                {
+                    label = $"내구도 {m_rod.Rod.durability}/{m_rod.Rod.maxDurability}",
+                    button1 = m_rod.Rod.durability < m_rod.Rod.maxDurability ? $"수리 {repairPrice}c" : null,
+                    onButton1 = () => { RepairRod(); RefreshShopPanel(); },
+                },
+            });
         }
 
         // 미끼 구매 — 코인 싱크 배선 (economy.md 일반 싱크, 가격은 §9 FishingFormulas 경유)

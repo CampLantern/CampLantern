@@ -35,6 +35,8 @@ namespace CampLantern.Bootstrap
         private bool m_joining;
         private string m_lastLog = "-";
         private WristHud m_wristHud; // 리그(DontDestroyOnLoad)에 붙어서 씬 이탈 시 직접 파괴해야 함
+        private ActionListPanel m_shopPanel; // 상점·배치 (그림 3 소셜존 동선 옆)
+        private ActionListPanel m_cookPanel; // 요리·판매 (냄비 옆)
 
         /// <summary>테스트/디버그 조회용 — 저장 라운드트립 자동 검증에 사용.</summary>
         public PlayerState State => m_state;
@@ -57,6 +59,24 @@ namespace CampLantern.Bootstrap
         {
             // 손목 HUD — 코인 (구매/판매 피드백). 리그(DontDestroyOnLoad)에 붙으므로 파괴는 하네스 책임
             m_wristHud = WristHud.Spawn(m_state.Wallet);
+
+            // 상점·배치 / 요리·판매 VR 패널 — IMGUI 블록의 실사용 대체 (Resources 로드, 씬 배선 불필요)
+            var listPrefab = Resources.Load<ActionListPanel>("ActionListPanel");
+            if (listPrefab != null)
+            {
+                m_shopPanel = Instantiate(listPrefab);
+                m_shopPanel.transform.position = new Vector3(3.2f, 1.55f, -1f); // 입구→소셜존 길 오른편
+                m_shopPanel.SetTitle("상점·배치");
+
+                m_cookPanel = Instantiate(listPrefab);
+                m_cookPanel.transform.position = new Vector3(-1.8f, 1.55f, 1.2f); // 냄비(0,0,1) 왼편
+                m_cookPanel.SetTitle("요리·판매");
+
+                // 인벤토리 변동(투입·판매·조리 결과) 시 자동 갱신. 나머지 변동은 각 액션 후 직접 갱신.
+                // 최초 갱신은 Start 끝에서 — 저장된 배치 복원(아래) 이후여야 수용량이 맞다.
+                m_state.Inventory.Changed -= RefreshVrPanels;
+                m_state.Inventory.Changed += RefreshVrPanels;
+            }
 
             m_pot.Initialize(m_state.Inventory);
             m_pot.Cooked -= OnCooked;
@@ -83,11 +103,14 @@ namespace CampLantern.Bootstrap
                     }
                 }
             }
+
+            RefreshVrPanels(); // 배치 복원까지 끝난 뒤 최초 갱신 — 수용량/배치 버튼이 실제 상태를 반영
         }
 
         private void OnDestroy()
         {
             m_pot.Cooked -= OnCooked;
+            if (m_state != null) m_state.Inventory.Changed -= RefreshVrPanels;
             if (m_wristHud != null) Destroy(m_wristHud.gameObject); // 리그에 붙어 있어 씬 언로드로 안 죽는다
         }
 
@@ -158,12 +181,8 @@ namespace CampLantern.Bootstrap
                 GUILayout.BeginHorizontal();
                 GUILayout.Label($"{entry.Key.DisplayName} x{entry.Value}", GUILayout.Width(140));
                 if (GUILayout.Button("투입", GUILayout.Width(60))) m_pot.TryAddIngredient(entry.Key);
-                if (GUILayout.Button($"판매 {entry.Key.SellPrice}c", GUILayout.Width(90)) &&
-                    m_state.Inventory.TryRemove(entry.Key))
-                {
-                    m_state.Wallet.Add(entry.Key.SellPrice);
-                    m_state.Save(m_estateManager); // 판매 즉시 저장
-                }
+                if (GUILayout.Button($"판매 {entry.Key.SellPrice}c", GUILayout.Width(90)))
+                    SellItem(entry.Key);
                 GUILayout.EndHorizontal();
             }
 
@@ -192,11 +211,7 @@ namespace CampLantern.Bootstrap
                 else
                 {
                     if (GUILayout.Button("구매", GUILayout.Width(50)))
-                    {
-                        bool purchased = m_state.Shop.TryPurchase(def);
-                        m_lastLog = purchased ? $"구매: {def.DisplayName}" : "구매 실패 (재화 부족)";
-                        if (purchased) m_state.Save(m_estateManager); // 구매 즉시 저장
-                    }
+                        PurchaseDef(def);
                     int owned = m_state.Shop.CountOwned(def);
                     if (owned > 0 && GUILayout.Button($"배치({owned})", GUILayout.Width(70)))
                         TryPlace(def);
@@ -205,10 +220,97 @@ namespace CampLantern.Bootstrap
             }
 
             if (m_estateManager.PlacedObjects.Count > 0 && GUILayout.Button("마지막 배치물 회수"))
+                RemoveLastPlaced();
+        }
+
+        // ── VR 패널 (상점·배치 / 요리·판매) — IMGUI와 동일 로직을 공유 메서드로 배선 ──
+
+        private void RefreshVrPanels()
+        {
+            if (m_shopPanel == null) return;
+
+            // 상점·배치
+            var shopRows = new List<ActionListPanel.RowSpec>
             {
-                m_estateManager.Remove(m_estateManager.PlacedObjects[m_estateManager.PlacedObjects.Count - 1]);
-                m_state.Save(m_estateManager); // 회수(보유 반환) 즉시 저장
+                new ActionListPanel.RowSpec
+                {
+                    label = $"수용량 {m_estateManager.CapacityUsed}/{m_estateManager.CapacityMax}",
+                    button1 = m_estateManager.PlacedObjects.Count > 0 ? "회수" : null,
+                    onButton1 = () => { RemoveLastPlaced(); RefreshVrPanels(); },
+                },
+            };
+            foreach (EstateObjectDef def in m_estateCatalog)
+            {
+                if (def == null) continue;
+                string material = def.RequiredMaterial != null
+                    ? $" + {def.RequiredMaterial.DisplayName} x{def.RequiredMaterialCount}" : "";
+                var row = new ActionListPanel.RowSpec { label = $"{def.DisplayName} ({def.CoinCost}c{material})" };
+                if (def.Rarity == Rarity.Epic)
+                {
+                    row.label += " · 이벤트 전용";
+                }
+                else
+                {
+                    EstateObjectDef captured = def; // 클로저 캡처 고정
+                    row.button1 = "구매";
+                    row.onButton1 = () => { PurchaseDef(captured); RefreshVrPanels(); };
+                    int owned = m_state.Shop.CountOwned(def);
+                    if (owned > 0)
+                    {
+                        row.button2 = $"배치({owned})";
+                        row.onButton2 = () => { TryPlace(captured); RefreshVrPanels(); };
+                    }
+                }
+                shopRows.Add(row);
             }
+            m_shopPanel.SetRows(shopRows);
+
+            // 요리·판매
+            var potNames = new List<string>();
+            foreach (ItemDef ingredient in m_pot.Ingredients) potNames.Add(ingredient.DisplayName);
+            var cookRows = new List<ActionListPanel.RowSpec>
+            {
+                new ActionListPanel.RowSpec
+                {
+                    label = potNames.Count > 0 ? $"냄비: {string.Join(", ", potNames)}" : "냄비: (비어 있음)",
+                    button1 = "조리",   onButton1 = () => { m_pot.Cook(); RefreshVrPanels(); },
+                    button2 = "비우기", onButton2 = () => { m_pot.Clear(); RefreshVrPanels(); },
+                },
+            };
+            foreach (KeyValuePair<ItemDef, int> entry in new List<KeyValuePair<ItemDef, int>>(m_state.Inventory.Items))
+            {
+                ItemDef item = entry.Key; // 클로저 캡처 고정
+                cookRows.Add(new ActionListPanel.RowSpec
+                {
+                    label = $"{item.DisplayName} x{entry.Value}",
+                    button1 = "투입",
+                    onButton1 = () => { m_pot.TryAddIngredient(item); RefreshVrPanels(); },
+                    button2 = $"판매 {item.SellPrice}c",
+                    onButton2 = () => SellItem(item), // Inventory.Changed가 갱신을 트리거
+                });
+            }
+            m_cookPanel.SetRows(cookRows);
+        }
+
+        private void PurchaseDef(EstateObjectDef def)
+        {
+            bool purchased = m_state.Shop.TryPurchase(def);
+            m_lastLog = purchased ? $"구매: {def.DisplayName}" : "구매 실패 (재화 부족)";
+            if (purchased) m_state.Save(m_estateManager); // 구매 즉시 저장
+        }
+
+        private void SellItem(ItemDef item)
+        {
+            if (!m_state.Inventory.TryRemove(item)) return;
+            m_state.Wallet.Add(item.SellPrice);
+            m_state.Save(m_estateManager); // 판매 즉시 저장
+        }
+
+        private void RemoveLastPlaced()
+        {
+            if (m_estateManager.PlacedObjects.Count == 0) return;
+            m_estateManager.Remove(m_estateManager.PlacedObjects[m_estateManager.PlacedObjects.Count - 1]);
+            m_state.Save(m_estateManager); // 회수(보유 반환) 즉시 저장
         }
 
         private void TryPlace(EstateObjectDef def)
