@@ -71,7 +71,8 @@ namespace CampLantern.EditorTools
             DestroyRootIfExists("FishingEnvironment");
             Transform env = new GameObject("FishingEnvironment").transform;
 
-            RecolorGround("#567455");
+            TextureGround("ground_grass", "#567455");
+            PolishPondWater(); // 투명·고광택 수면
 
             // 모래톱 — Pond(plane 10x10, 중심 (0,0.02,2)) 밑에 깔리는 원반, 물가 테두리 연출
             Part(env, PrimitiveType.Cylinder, new Vector3(0f, 0.004f, 2f),
@@ -102,15 +103,22 @@ namespace CampLantern.EditorTools
                 }
             }
 
-            // 물가 바위
-            Part(env, PrimitiveType.Sphere, new Vector3(-5.8f, 0.15f, 3.2f), new Vector3(0.7f, 0.4f, 0.6f),  Stone, name: "Rock");
-            Part(env, PrimitiveType.Sphere, new Vector3(6.0f, 0.1f, 3.8f),   new Vector3(0.45f, 0.3f, 0.45f), Stone, name: "Rock");
-            Part(env, PrimitiveType.Sphere, new Vector3(1.6f, 0.1f, -2.6f),  new Vector3(0.4f, 0.22f, 0.38f), Stone, name: "Rock");
+            // 물가 바위 (실물 프리팹 변주) — 연못·부두 밖 물가에만
+            PlaceRock(env, new Vector3(-6.4f, 0f, 3.2f), 1.2f);
+            PlaceRock(env, new Vector3(6.6f, 0f, 4.2f),  0.8f);
+            PlaceRock(env, new Vector3(3.0f, 0f, -4.0f), 0.45f);
 
             // 낚시 캠프 (서쪽) + 부두 입구 랜턴
             BuildCampfire(env, new Vector3(-7f, 0f, -5f), withSeats: true);
             BuildTent(env, new Vector3(-9.5f, 0f, -3.2f), yaw: 120f, scale: 1.5f);
-            BuildLanternPost(env, new Vector3(1.4f, 0f, -2.6f));
+            BuildLanternPost(env, new Vector3(1.7f, 0f, -3.9f)); // 연못 수면(z≥-3) 밖 마른 땅
+
+            // 캠프 소품 + 지피식물 — 연못(중심 (0,2) 반경 ~6.8 모래톱) 안으로 침범하지 않는 범위만
+            PlaceEnv(env, "storage_barrel_fish", new Vector3(-1.7f, 0f, -3.8f), yaw: 20f, scale: 0.55f); // 부두 서쪽 마른 땅 (원본이 부두보다 큼)
+            PlaceEnv(env, "storage_basket",      new Vector3(-6.0f, 0f, -3.6f), yaw: 70f);
+            ScatterGroundCover(env, new Vector3(0f, 0f, -9f),   4.2f, 40, seed: 7161);
+            ScatterGroundCover(env, new Vector3(-10.5f, 0f, 2f), 3.2f, 15, seed: 7162);
+            ScatterGroundCover(env, new Vector3(10.5f, 0f, 2f),  3.2f, 15, seed: 7163);
 
             // 둘레 숲 (연못 남쪽/동서 가장자리)
             Vector3[] trees = { new Vector3(-13f, 0f, 3f), new Vector3(13f, 0f, 4f), new Vector3(-11f, 0f, -8f),
@@ -142,7 +150,7 @@ namespace CampLantern.EditorTools
             DestroyRootIfExists("HuntZoneEnvironment");
             Transform env = new GameObject("HuntZoneEnvironment").transform;
 
-            RecolorGround("#55603f");
+            TextureGround("ground_grass", "#55603f", 20f, "#cfd8c2"); // 숲그늘 톤 다운
 
             // 둘레 숲 — 사냥감 스폰 공터(x±8, z 0~15)와 스폰 접근로(z<0 중앙)는 비운다
             Vector3[] trees =
@@ -158,15 +166,21 @@ namespace CampLantern.EditorTools
             for (int i = 0; i < trees.Length; i++)
                 BuildTree(env, trees[i], 1.1f + (i % 3) * 0.18f); // 숲이라 로비보다 크게
 
-            // 공터 가장자리 디테일 — 쓰러진 통나무·바위·수풀
+            // 공터 가장자리 디테일 — 쓰러진 통나무·그루터기·바위·수풀
             Part(env, PrimitiveType.Cylinder, new Vector3(8.5f, 0.3f, 2f), new Vector3(0.35f, 1.6f, 0.35f),
                  WoodDark2, new Vector3(0f, 20f, 90f), name: "FallenLog");
-            Part(env, PrimitiveType.Sphere, new Vector3(-8.8f, 0.2f, 3.5f),  new Vector3(0.9f, 0.5f, 0.8f),   Stone, name: "Rock");
-            Part(env, PrimitiveType.Sphere, new Vector3(9.5f, 0.15f, 10f),   new Vector3(0.6f, 0.35f, 0.55f), Stone, name: "Rock");
-            Part(env, PrimitiveType.Sphere, new Vector3(-9.2f, 0.12f, 11f),  new Vector3(0.5f, 0.3f, 0.45f),  Stone, name: "Rock");
-            Part(env, PrimitiveType.Sphere, new Vector3(-8f, 0.25f, 7f),     new Vector3(0.9f, 0.5f, 0.9f),   LeafDark,  name: "Bush");
-            Part(env, PrimitiveType.Sphere, new Vector3(8.2f, 0.22f, 6f),    new Vector3(0.8f, 0.45f, 0.8f),  LeafLight, name: "Bush");
-            Part(env, PrimitiveType.Sphere, new Vector3(3f, 0.2f, -4f),      new Vector3(0.7f, 0.4f, 0.7f),   LeafDark,  name: "Bush");
+            PlaceEnv(env, "Pine_stump",           new Vector3(-7.5f, 0f, 12.5f), yaw: 80f);
+            PlaceEnv(env, "Deciduous_tree_stump", new Vector3(6.8f, 0f, 13f),    yaw: 200f);
+            PlaceRock(env, new Vector3(-8.8f, 0f, 3.5f), 1.4f);
+            PlaceRock(env, new Vector3(9.5f, 0f, 10f),   1.0f);
+            PlaceRock(env, new Vector3(-9.2f, 0f, 11f),  0.9f);
+            PlaceBush(env, new Vector3(-8f, 0f, 7f),  1.3f);
+            PlaceBush(env, new Vector3(8.2f, 0f, 6f), 1.1f);
+            PlaceBush(env, new Vector3(3f, 0f, -4f),  1.0f);
+
+            // 숲 바닥 지피식물 (버섯·양치 포함 — 공터 중앙까지 옅게)
+            ScatterGroundCover(env, new Vector3(0f, 0f, 7f),   11f, 70, seed: 7164);
+            ScatterGroundCover(env, new Vector3(0f, 0f, -8f),  6f,  25, seed: 7165);
 
             // 사냥 베이스캠프 (남서) — 모닥불·텐트·랜턴
             BuildCampfire(env, new Vector3(-6.5f, 0f, -5f), withSeats: false);
@@ -200,7 +214,7 @@ namespace CampLantern.EditorTools
             DestroyRootIfExists("EstateEnvironment");
             Transform env = new GameObject("EstateEnvironment").transform;
 
-            RecolorGround("#63804d");
+            TextureGround("ground_grass", "#63804d");
 
             // 필지 울타리 (x ±12, z ±8) — 남쪽 중앙 입구 개구부
             BuildFence(env);
@@ -255,6 +269,15 @@ namespace CampLantern.EditorTools
             Part(env, PrimitiveType.Cylinder, new Vector3(16f, 0.7f, -6f),   new Vector3(0.03f, 2.5f, 0.03f), "#c9b98a", new Vector3(0f, 0f, 90f), name: "Rope");
             Part(env, PrimitiveType.Cylinder, new Vector3(13.5f, 0.7f, 0f),  new Vector3(0.03f, 6f, 0.03f),   "#c9b98a", new Vector3(90f, 0f, 0f), name: "Rope");
             Part(env, PrimitiveType.Cylinder, new Vector3(18.5f, 0.7f, 0f),  new Vector3(0.03f, 6f, 0.03f),   "#c9b98a", new Vector3(90f, 0f, 0f), name: "Rope");
+
+            // 생활 소품 + 화단 (팩 있을 때만)
+            PlaceEnv(env, "storage_barrel",       new Vector3(9.8f, 0f, 3.4f),  yaw: 25f, scale: 0.7f);
+            PlaceEnv(env, "storage_basket_small", new Vector3(-7.2f, 0f, -4.3f), yaw: 150f);
+            PlaceEnv(env, "storage_jug",          new Vector3(-8.9f, 0f, -4.6f), yaw: 0f);
+            PlaceEnv(env, "Sunflower", new Vector3(-2.7f, 0f, -7.6f), yaw: 10f);  // 입구 양옆 해바라기 (통로 x±1.2 밖)
+            PlaceEnv(env, "Sunflower", new Vector3(2.7f, 0f, -7.6f),  yaw: 190f);
+            ScatterGroundCover(env, new Vector3(-4f, 0f, 3f), 6f, 30, seed: 7166); // 필지 안 꽃밭
+            ScatterGroundCover(env, new Vector3(4f, 0f, -2f), 5f, 20, seed: 7167);
 
             // 필지 밖 나무 (서·북쪽 — 동쪽은 확장 구역이라 비움)
             Vector3[] trees = { new Vector3(-15f, 0f, 8f), new Vector3(-14f, 0f, -8f), new Vector3(-5f, 0f, 11f),

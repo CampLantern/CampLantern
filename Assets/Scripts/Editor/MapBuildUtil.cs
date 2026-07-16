@@ -41,6 +41,187 @@ namespace CampLantern.EditorTools
         public const string PathGray  = "#8d8d90";
         public const string LobbyGray = "#7a7a7e"; // 그림 1 로비 색 — 귀환 관문 현판용
 
+        // ── 실사 환경 에셋 (FantasyEnvironments / CFXR 파티클) ────────
+        // 팩이 임포트돼 있으면 프리팹·파티클을 쓰고, 없으면 기존 프리미티브로 폴백한다.
+
+        private const string k_envRoot  = "Assets/FantasyEnvironments";
+        private const string k_cfxrRoot = "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs";
+
+        // 위치 해시 변주용 프리팹 세트 (결정적 — 재생성해도 동일한 맵)
+        private static readonly string[] k_treeSet = { "Pine_tree1", "Oak_tree1", "Pine_tree2", "Birch_tree1",
+                                                       "Deciduous_tree2", "Pine_tree3", "Oak_tree3", "Birch_tree3" };
+        private static readonly string[] k_rockSet = { "Rock1", "Rock2", "Rock3", "Stone1", "Stone2", "Stone3" };
+        private static readonly string[] k_bushSet = { "Bush1", "Fern1", "Plant2", "Fern3" };
+        private static readonly string[] k_coverSet = { "Grass1", "Grass2", "Grass3", "Grass4", "Fern1", "Fern2",
+                                                        "Flower1", "Flower3", "Flower5", "Flower8", "Plant1",
+                                                        "Mushroom1", "Mushroom3" };
+
+        // 루트별 프리팹 basename→경로 인덱스 — 이름에 괄호가 있어도(CFXR) 안전한 조회
+        private static readonly System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<string, string>> s_prefabIndex = new();
+
+        public static bool HasEnvAssets => AssetDatabase.IsValidFolder(k_envRoot);
+
+        private static GameObject FindPrefab(string root, string name)
+        {
+            if (!s_prefabIndex.TryGetValue(root, out var index))
+            {
+                index = new System.Collections.Generic.Dictionary<string, string>();
+                foreach (string guid in AssetDatabase.FindAssets("t:prefab", new[] { root }))
+                {
+                    string path = AssetDatabase.GUIDToAssetPath(guid);
+                    index[System.IO.Path.GetFileNameWithoutExtension(path)] = path;
+                }
+                s_prefabIndex[root] = index;
+            }
+            return index.TryGetValue(name, out string prefabPath)
+                ? AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath)
+                : null;
+        }
+
+        /// <summary>환경 프리팹 배치 — 팩 미임포트/이름 불일치면 null (호출부가 폴백 판단).</summary>
+        public static GameObject PlaceEnv(Transform parent, string prefabName, Vector3 pos,
+                                          float yaw = 0f, float scale = 1f, string rename = null)
+        {
+            if (!HasEnvAssets) return null;
+            var prefab = FindPrefab(k_envRoot, prefabName);
+            if (prefab == null) return null;
+
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+            go.transform.localPosition = pos;
+            go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            go.transform.localScale    = Vector3.one * scale;
+            if (rename != null) go.name = rename;
+
+            // 정적 배칭만 — Part()와 동일 컨벤션 (ContributeGI 제외)
+            foreach (var r in go.GetComponentsInChildren<MeshRenderer>())
+                GameObjectUtility.SetStaticEditorFlags(r.gameObject, StaticEditorFlags.BatchingStatic);
+            return go;
+        }
+
+        /// <summary>CFXR 파티클 프리팹 배치 (모닥불 화염 등) — 없으면 null.</summary>
+        public static GameObject PlaceCfxr(Transform parent, string prefabName, Vector3 pos, float scale = 1f)
+        {
+            if (!AssetDatabase.IsValidFolder(k_cfxrRoot)) return null;
+            var prefab = FindPrefab(k_cfxrRoot, prefabName);
+            if (prefab == null) return null;
+
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+            go.transform.localPosition = pos;
+            go.transform.localScale    = Vector3.one * scale;
+            return go;
+        }
+
+        // 위치 기반 결정적 해시 — 프리팹 종류·회전 변주에 사용
+        private static int PosHash(Vector3 pos, int salt = 0) =>
+            Mathf.Abs(Mathf.RoundToInt(pos.x * 73.7f + pos.z * 31.3f) + salt);
+
+        // Rock/Stone 프리팹은 원본이 수 미터급 거석 — 소품 바위 스케일로 내리는 보정 계수 (스크린샷 검증으로 확정)
+        private const float k_rockPrefabScale = 0.35f;
+
+        /// <summary>바위 배치 — Rock/Stone 프리팹 변주, 폴백은 반매몰 구체.</summary>
+        public static void PlaceRock(Transform parent, Vector3 pos, float scale)
+        {
+            int h = PosHash(pos, 11);
+            if (PlaceEnv(parent, k_rockSet[h % k_rockSet.Length], pos, h % 360, scale * k_rockPrefabScale, "Rock") != null) return;
+            Part(parent, PrimitiveType.Sphere, pos + new Vector3(0f, 0.12f * scale, 0f),
+                 new Vector3(0.5f, 0.3f, 0.45f) * scale, Stone, name: "Rock");
+        }
+
+        /// <summary>수풀 배치 — Bush/Fern/Plant 프리팹 변주, 폴백은 잎색 구체.</summary>
+        public static void PlaceBush(Transform parent, Vector3 pos, float scale)
+        {
+            int h = PosHash(pos, 23);
+            if (PlaceEnv(parent, k_bushSet[h % k_bushSet.Length], pos, h % 360, scale, "Bush") != null) return;
+            Part(parent, PrimitiveType.Sphere, pos + new Vector3(0f, 0.25f * scale, 0f),
+                 new Vector3(0.8f, 0.5f, 0.8f) * scale, h % 2 == 0 ? LeafDark : LeafLight, name: "Bush");
+        }
+
+        /// <summary>
+        /// 지피식물 스캐터 — 풀·양치·꽃·버섯을 원형 영역에 흩뿌린다 (고정 시드 = 결정적 배치).
+        /// 팩 미임포트 시 아무것도 안 함 (프리미티브 잔풀은 오히려 지저분해서 폴백 없음).
+        /// </summary>
+        public static void ScatterGroundCover(Transform parent, Vector3 center, float radius, int count, int seed)
+        {
+            if (!HasEnvAssets) return;
+            Transform group = Group(parent, "GroundCover", center);
+            var rng = new System.Random(seed);
+            for (int i = 0; i < count; i++)
+            {
+                double angle = rng.NextDouble() * Mathf.PI * 2.0;
+                float  dist  = Mathf.Sqrt((float)rng.NextDouble()) * radius; // 면적 균등 분포
+                var pos = new Vector3(Mathf.Cos((float)angle) * dist, 0f, Mathf.Sin((float)angle) * dist);
+                PlaceEnv(group, k_coverSet[rng.Next(k_coverSet.Length)], pos,
+                         (float)(rng.NextDouble() * 360.0), 0.8f + (float)rng.NextDouble() * 0.5f);
+            }
+        }
+
+        /// <summary>
+        /// Ground에 타일링 텍스처 머티리얼 적용 — 텍스처 없으면 fallbackHex 단색 폴백.
+        /// tintHex는 텍스처에 곱해지는 무드 틴트 (null이면 원색).
+        /// </summary>
+        public static void TextureGround(string texName, string fallbackHex, float tiling = 20f, string tintHex = null)
+        {
+            var ground = GameObject.Find("Ground");
+            if (ground == null) return;
+
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(
+                $"{k_envRoot}/Environments/Textures/{texName}.png");
+            if (tex == null) { RecolorGround(fallbackHex); return; }
+
+            Color tint = tintHex != null ? Hex(tintHex) : Color.white;
+            string safe = tintHex != null ? tintHex.Replace("#", "") : "ffffff";
+            string path = $"{k_materialFolder}/Mat_Ground_{texName}_{safe}.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                EnsureMaterialFolder();
+                mat = new Material(GroundShader())
+                {
+                    mainTexture = tex,
+                    mainTextureScale = new Vector2(tiling, tiling),
+                    color = tint,
+                };
+                if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.05f);
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            ground.GetComponent<Renderer>().sharedMaterial = mat;
+        }
+
+        /// <summary>Pond를 투명·고광택 수면 머티리얼로 교체 (낚시터 물 실사화).</summary>
+        public static void PolishPondWater()
+        {
+            var pond = GameObject.Find("Pond");
+            if (pond == null) return;
+
+            string path = $"{k_materialFolder}/Mat_Water.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                EnsureMaterialFolder();
+                mat = new Material(GroundShader()) { color = new Color(0.16f, 0.34f, 0.45f, 0.78f) };
+                if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.95f);
+                if (mat.HasProperty("_Surface")) // URP Lit 투명 설정
+                {
+                    mat.SetFloat("_Surface", 1f);
+                    mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                    mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    mat.SetFloat("_ZWrite", 0f);
+                    mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                }
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            pond.GetComponent<Renderer>().sharedMaterial = mat;
+        }
+
+        private static Shader GroundShader()
+        {
+            Shader shader = GraphicsSettings.currentRenderPipeline != null
+                ? Shader.Find("Universal Render Pipeline/Lit")
+                : Shader.Find("Standard");
+            return shader != null ? shader : Shader.Find("Standard");
+        }
+
         // ── 기본 조립 ────────────────────────────────────────────────
 
         public static Transform Group(Transform parent, string name, Vector3 localPos)
@@ -97,6 +278,10 @@ namespace CampLantern.EditorTools
 
         public static void BuildTree(Transform parent, Vector3 pos, float scale)
         {
+            // 실물 나무 (AO-Trees) — 위치 해시로 종류·방향 결정적 변주
+            int h = PosHash(pos);
+            if (PlaceEnv(parent, k_treeSet[h % k_treeSet.Length], pos, h % 360, scale, "Tree") != null) return;
+
             Transform tree = Group(parent, "Tree", pos);
             tree.localScale = Vector3.one * scale;
             Part(tree, PrimitiveType.Cylinder, new Vector3(0f, 0.9f, 0f),  new Vector3(0.35f, 0.9f, 0.35f),  Trunk);
@@ -117,8 +302,13 @@ namespace CampLantern.EditorTools
             }
             Part(fire, PrimitiveType.Cylinder, new Vector3(0f, 0.12f, 0f), new Vector3(0.1f, 0.5f, 0.1f), WoodDark,  new Vector3(90f, 25f, 0f));
             Part(fire, PrimitiveType.Cylinder, new Vector3(0f, 0.12f, 0f), new Vector3(0.1f, 0.5f, 0.1f), WoodDark2, new Vector3(90f, -25f, 0f));
-            Part(fire, PrimitiveType.Capsule,  new Vector3(0f, 0.42f, 0f), new Vector3(0.28f, 0.3f, 0.28f), Flame,     name: "Flame");
-            Part(fire, PrimitiveType.Capsule,  new Vector3(0f, 0.38f, 0f), new Vector3(0.16f, 0.2f, 0.16f), FlameCore, name: "FlameCore");
+
+            // 화염 — CFXR 파티클 우선, 없으면 캡슐 폴백
+            if (PlaceCfxr(fire, "CFXR Fire", new Vector3(0f, 0.12f, 0f)) == null)
+            {
+                Part(fire, PrimitiveType.Capsule, new Vector3(0f, 0.42f, 0f), new Vector3(0.28f, 0.3f, 0.28f), Flame,     name: "Flame");
+                Part(fire, PrimitiveType.Capsule, new Vector3(0f, 0.38f, 0f), new Vector3(0.16f, 0.2f, 0.16f), FlameCore, name: "FlameCore");
+            }
             AddPointLight(fire, new Vector3(0f, 0.8f, 0f), Hex("#ffa052"), 2.0f, 9f);
 
             if (withSeats)
@@ -137,12 +327,25 @@ namespace CampLantern.EditorTools
 
         public static Transform BuildTent(Transform parent, Vector3 pos, float yaw, float scale)
         {
+            // A프레임 캔버스 텐트 — 실물 에셋 옆에서도 무너져 보이지 않게 능선·뒷면·바닥까지 닫은 형태
+            const string canvas   = "#8f7f5e"; // 바랜 올리브 캔버스
+            const string canvasDk = "#6b5d43";
+
             Transform tent = Group(parent, "Tent", pos);
             tent.localRotation = Quaternion.Euler(0f, yaw, 0f);
             tent.localScale = Vector3.one * scale;
-            Part(tent, PrimitiveType.Cube, new Vector3(-0.3f, 0.55f, 0f), new Vector3(0.06f, 1.1f, 1.3f), Canvas, new Vector3(0f, 0f, 28f));
-            Part(tent, PrimitiveType.Cube, new Vector3(0.3f, 0.55f, 0f),  new Vector3(0.06f, 1.1f, 1.3f), Canvas, new Vector3(0f, 0f, -28f));
-            Part(tent, PrimitiveType.Cube, new Vector3(0f, 0.35f, 0.62f), new Vector3(0.35f, 0.5f, 0.04f), CanvasDk);
+
+            // 경사 패널 2장 (35°) — 꼭대기 y≈1.03에서 만나는 Λ자.
+            // z+회전은 윗부분을 -x로 눕히므로 왼쪽(-x) 패널이 -35°, 오른쪽이 +35° (부호 반대면 V자로 무너져 보임)
+            Part(tent, PrimitiveType.Cube, new Vector3(-0.36f, 0.52f, 0f), new Vector3(0.04f, 1.25f, 1.4f), canvas, new Vector3(0f, 0f, -35f));
+            Part(tent, PrimitiveType.Cube, new Vector3(0.36f, 0.52f, 0f),  new Vector3(0.04f, 1.25f, 1.4f), canvas, new Vector3(0f, 0f, 35f));
+            // 능선 폴 + 앞뒤 받침 폴
+            Part(tent, PrimitiveType.Cylinder, new Vector3(0f, 1.03f, 0f), new Vector3(0.05f, 0.74f, 0.05f), WoodDark, new Vector3(90f, 0f, 0f), name: "Ridge");
+            Part(tent, PrimitiveType.Cylinder, new Vector3(0f, 0.5f, 0.7f),  new Vector3(0.04f, 0.52f, 0.04f), WoodDark, name: "Pole");
+            Part(tent, PrimitiveType.Cylinder, new Vector3(0f, 0.5f, -0.7f), new Vector3(0.04f, 0.52f, 0.04f), WoodDark, name: "Pole");
+            // 뒷면 마감 + 바닥 시트
+            Part(tent, PrimitiveType.Cube, new Vector3(0f, 0.45f, -0.66f), new Vector3(0.64f, 0.92f, 0.035f), canvasDk, name: "Back");
+            Part(tent, PrimitiveType.Cube, new Vector3(0f, 0.012f, 0f),    new Vector3(0.8f, 0.024f, 1.5f),   canvasDk, name: "GroundSheet");
             return tent;
         }
 
@@ -150,8 +353,10 @@ namespace CampLantern.EditorTools
         {
             Transform post = Group(parent, "LanternPost", pos);
             Part(post, PrimitiveType.Cylinder, new Vector3(0f, 0.85f, 0f), new Vector3(0.07f, 0.85f, 0.07f), "#4a3a28");
-            Part(post, PrimitiveType.Cube,     new Vector3(0f, 1.78f, 0f), new Vector3(0.2f, 0.26f, 0.2f),   Glow, name: "Glow");
-            Part(post, PrimitiveType.Cube,     new Vector3(0f, 1.94f, 0f), new Vector3(0.24f, 0.05f, 0.24f), Gold, name: "Cap");
+            var glow = Part(post, PrimitiveType.Cube, new Vector3(0f, 1.80f, 0f), new Vector3(0.13f, 0.17f, 0.13f), Glow, name: "Glow");
+            glow.GetComponent<Renderer>().sharedMaterial = MatEmissive(Glow); // 밤에도 빛나 보이게 에미션
+            Part(post, PrimitiveType.Cube,     new Vector3(0f, 1.905f, 0f), new Vector3(0.17f, 0.04f, 0.17f), Gold, name: "Cap");
+            PlaceCfxr(post, "CFXR3 LightGlow A (Loop)", new Vector3(0f, 1.78f, 0f), 0.35f); // 은은한 글로우 (없으면 생략)
             AddPointLight(post, new Vector3(0f, 1.78f, 0f), Hex("#ffe2a8"), 1.4f, 6f);
         }
 
@@ -365,6 +570,23 @@ namespace CampLantern.EditorTools
             if (shader == null) shader = Shader.Find("Standard");
 
             mat = new Material(shader) { color = Hex(hex) };
+            AssetDatabase.CreateAsset(mat, path);
+            return mat;
+        }
+
+        /// <summary>발광 머티리얼 (랜턴 갓 등) — 베이스색 + 에미션, 색상별 공유 캐시.</summary>
+        public static Material MatEmissive(string hex, float intensity = 1.6f)
+        {
+            string safe = hex.Replace("#", "");
+            string path = $"{k_materialFolder}/Mat_PH_E_{safe}.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat != null) return mat;
+
+            EnsureMaterialFolder();
+            mat = new Material(GroundShader()) { color = Hex(hex) };
+            mat.EnableKeyword("_EMISSION");
+            mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            mat.SetColor("_EmissionColor", Hex(hex) * intensity);
             AssetDatabase.CreateAsset(mat, path);
             return mat;
         }

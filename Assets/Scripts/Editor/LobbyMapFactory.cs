@@ -77,7 +77,7 @@ namespace CampLantern.EditorTools
             DestroyRootIfExists("LobbyEnvironment");
             Transform env = new GameObject("LobbyEnvironment").transform;
 
-            RecolorGround(k_grass);
+            TextureGround("ground_grass", k_grass); // 잔디 텍스처 (팩 미임포트 시 단색 폴백)
 
             // 모닥불 플라자 (스폰 오른편) + 장작 더미
             BuildCampfire(env, new Vector3(2.8f, 0f, 1.2f), withSeats: true);
@@ -90,13 +90,25 @@ namespace CampLantern.EditorTools
             BuildTent(env, new Vector3(-5.2f, 0f, 1.2f), yaw: 60f, scale: 1.6f);
             BuildLanternPost(env, new Vector3(1.5f, 0f, 2.2f));
 
-            // 바위·수풀
-            Part(env, PrimitiveType.Sphere, new Vector3(-1.8f, 0.12f, 0.3f),  new Vector3(0.5f, 0.3f, 0.45f),  Stone, name: "Rock");
-            Part(env, PrimitiveType.Sphere, new Vector3(5.2f, 0.1f, -1.0f),   new Vector3(0.4f, 0.25f, 0.4f),  Stone, name: "Rock");
-            Part(env, PrimitiveType.Sphere, new Vector3(-5.5f, 0.15f, -2.5f), new Vector3(0.7f, 0.4f, 0.6f),   Stone, name: "Rock");
-            Part(env, PrimitiveType.Sphere, new Vector3(0.8f, 0.1f, 6.5f),    new Vector3(0.45f, 0.28f, 0.4f), Stone, name: "Rock");
-            Part(env, PrimitiveType.Sphere, new Vector3(-1.6f, 0.25f, 5.4f),  new Vector3(0.8f, 0.5f, 0.8f),   LeafLight, name: "Bush");
-            Part(env, PrimitiveType.Sphere, new Vector3(4.6f, 0.22f, 4.6f),   new Vector3(0.7f, 0.45f, 0.7f),  LeafDark,  name: "Bush");
+            // 바위·수풀 (실물 프리팹 변주, 팩 없으면 프리미티브 폴백)
+            PlaceRock(env, new Vector3(-1.8f, 0f, 0.3f),  0.9f);
+            PlaceRock(env, new Vector3(5.2f, 0f, -1.0f),  0.7f);
+            PlaceRock(env, new Vector3(-5.5f, 0f, -2.5f), 1.2f);
+            PlaceRock(env, new Vector3(0.8f, 0f, 6.5f),   0.8f);
+            PlaceBush(env, new Vector3(-1.6f, 0f, 5.4f),  1.1f);
+            PlaceBush(env, new Vector3(4.6f, 0f, 4.6f),   1.0f);
+
+            // 캠프 생활 소품 (팩 있을 때만 — PlaceEnv가 없으면 무시)
+            PlaceEnv(env, "storage_barrel", new Vector3(5.0f, 0f, 1.8f),  yaw: 40f, scale: 0.7f); // 원본이 1.8m급 — 캠프 소품 크기로
+            PlaceEnv(env, "storage_basket", new Vector3(3.8f, 0f, 0.1f),  yaw: 300f);
+            PlaceEnv(env, "cart1",          new Vector3(-7.4f, 0f, 3.0f), yaw: 115f);
+            PlaceEnv(env, "storage_bag",    new Vector3(-4.1f, 0f, 2.4f), yaw: 20f);
+
+            // 지피식물 스캐터 (풀·꽃·양치 — 고정 시드, 재생성해도 동일)
+            ScatterGroundCover(env, Vector3.zero, 13f, 80, seed: 7160);
+
+            // 원경 풍차 실루엣 (Ground 평면 ±20m 안, 숲 링 바깥) — 프리팹 피벗이 바닥이 아니라 y 보정 (감사에서 2m 매몰 확인)
+            PlaceEnv(env, "Windmill", new Vector3(16f, 1.85f, 18f), yaw: 205f);
 
             // 둘레 숲
             for (int i = 0; i < k_treePositions.Length; i++)
