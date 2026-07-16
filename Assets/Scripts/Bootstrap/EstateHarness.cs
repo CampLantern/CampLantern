@@ -38,6 +38,7 @@ namespace CampLantern.Bootstrap
         private ActionListPanel m_shopPanel; // 상점·배치 (그림 3 소셜존 동선 옆)
         private ActionListPanel m_cookPanel; // 요리·판매 (냄비 옆)
         private ToastHud m_toast;            // 시야 하단 알림 — 리그 부착이라 하네스가 파괴 책임
+        private PotInteractionZone m_potZone; // 물리 투입구 — 씬 소속이라 파괴는 씬 언로드에 맡긴다
 
         /// <summary>테스트/디버그 조회용 — 저장 라운드트립 자동 검증에 사용.</summary>
         public PlayerState State => m_state;
@@ -83,6 +84,16 @@ namespace CampLantern.Bootstrap
             m_pot.Initialize(m_state.Inventory);
             m_pot.Cooked -= OnCooked;
             m_pot.Cooked += OnCooked;
+            m_pot.IngredientAdded -= OnIngredientAdded;
+            m_pot.IngredientAdded += OnIngredientAdded;
+
+            // 물리 요리 세트 — 재료 프록시를 집어 냄비에 넣고 국자로 저어 조리 (VR 패널의 "투입"/"조리" 버튼 대체)
+            m_potZone = PhysicalCookingBuilder.Build(m_pot, m_state.Inventory);
+            if (m_potZone != null)
+            {
+                m_potZone.Rejected -= OnPotRejected;
+                m_potZone.Rejected += OnPotRejected;
+            }
 
             m_estateManager.Bind(m_state.Shop);
 
@@ -112,6 +123,8 @@ namespace CampLantern.Bootstrap
         private void OnDestroy()
         {
             m_pot.Cooked -= OnCooked;
+            m_pot.IngredientAdded -= OnIngredientAdded;
+            if (m_potZone != null) m_potZone.Rejected -= OnPotRejected;
             if (m_state != null) m_state.Inventory.Changed -= RefreshVrPanels;
             if (m_wristHud != null) Destroy(m_wristHud.gameObject); // 리그에 붙어 있어 씬 언로드로 안 죽는다
             if (m_toast != null) Destroy(m_toast.gameObject);
@@ -139,6 +152,16 @@ namespace CampLantern.Bootstrap
         {
             Notify($"조리 결과: {result.DisplayName}");
             m_state.Save(m_estateManager); // OS 강제종료 대비 — 재료 소모·결과물 반영 즉시 저장
+        }
+
+        private void OnIngredientAdded(ItemDef item)
+        {
+            Notify($"냄비에 투입: {item.DisplayName}");
+        }
+
+        private void OnPotRejected(ItemDef item)
+        {
+            Notify($"{item.DisplayName} — 남은 재고가 없어요");
         }
 
         // 영지 소유자 식별 — 인증 백엔드 확정 전 임시값 (SystemInfo.deviceUniqueIdentifier).
@@ -275,7 +298,8 @@ namespace CampLantern.Bootstrap
             }
             m_shopPanel.SetRows(shopRows);
 
-            // 요리·판매
+            // 요리·판매 — 투입/조리는 물리 동사로 대체됨(PhysicalCookingBuilder): 재료를 집어 냄비에, 국자로 저어 조리.
+            // 패널에는 냄비 상태 확인·비우기와 판매만 남긴다.
             var potNames = new List<string>();
             foreach (ItemDef ingredient in m_pot.Ingredients) potNames.Add(ingredient.DisplayName);
             var cookRows = new List<ActionListPanel.RowSpec>
@@ -283,8 +307,11 @@ namespace CampLantern.Bootstrap
                 new ActionListPanel.RowSpec
                 {
                     label = potNames.Count > 0 ? $"냄비: {string.Join(", ", potNames)}" : "냄비: (비어 있음)",
-                    button1 = "조리",   onButton1 = () => { m_pot.Cook(); RefreshVrPanels(); },
-                    button2 = "비우기", onButton2 = () => { m_pot.Clear(); RefreshVrPanels(); },
+                    button1 = "비우기", onButton1 = () => { m_pot.Clear(); RefreshVrPanels(); },
+                },
+                new ActionListPanel.RowSpec
+                {
+                    label = "선반의 재료를 냄비에 넣고, 국자로 저으면 조리돼요",
                 },
             };
             foreach (KeyValuePair<ItemDef, int> entry in new List<KeyValuePair<ItemDef, int>>(m_state.Inventory.Items))
@@ -293,10 +320,8 @@ namespace CampLantern.Bootstrap
                 cookRows.Add(new ActionListPanel.RowSpec
                 {
                     label = $"{item.DisplayName} x{entry.Value}",
-                    button1 = "투입",
-                    onButton1 = () => { m_pot.TryAddIngredient(item); RefreshVrPanels(); },
-                    button2 = $"판매 {item.SellPrice}c",
-                    onButton2 = () => SellItem(item), // Inventory.Changed가 갱신을 트리거
+                    button1 = $"판매 {item.SellPrice}c",
+                    onButton1 = () => SellItem(item), // Inventory.Changed가 갱신을 트리거
                 });
             }
             m_cookPanel.SetRows(cookRows);

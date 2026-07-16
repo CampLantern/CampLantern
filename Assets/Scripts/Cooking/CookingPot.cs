@@ -21,6 +21,9 @@ namespace CampLantern.Cooking
         /// <summary>조리 완료 시 발화 — 성공 요리 또는 실패작. 구독자는 OnDestroy/OnDisable에서 반드시 해제할 것 (rules/scripts.md).</summary>
         public event Action<ItemDef> Cooked;
 
+        /// <summary>재료 투입 성공 시 발화 — 물리 투입(PotInteractionZone)·IMGUI 공통 피드백 훅. 구독 해제 규칙 동일.</summary>
+        public event Action<ItemDef> IngredientAdded;
+
         private Inventory m_inventory;
         private RecipeMatcher m_matcher;
         private readonly List<ItemDef> m_ingredients = new List<ItemDef>();
@@ -52,6 +55,7 @@ namespace CampLantern.Cooking
             if (!m_inventory.TryRemove(item)) return false;
 
             m_ingredients.Add(item);
+            IngredientAdded?.Invoke(item);
             return true;
         }
 
