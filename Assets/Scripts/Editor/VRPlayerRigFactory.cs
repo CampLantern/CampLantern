@@ -227,12 +227,19 @@ namespace CampLantern.EditorTools
         {
             if (handAnchor == null) return;
             foreach (Transform child in handAnchor)
-                if (child.name == "GloveVisual") return; // 이미 있음
+                if (child.name == "GloveVisual") { Object.DestroyImmediate(child.gameObject); break; } // 구버전 제거 후 재조립 (포즈 갱신 반영)
 
             var gloveRoot = new GameObject("GloveVisual");
             gloveRoot.transform.SetParent(handAnchor, false);
-            gloveRoot.AddComponent<GloveFallbackVisual>();
             float mx = mirrorX ? -1f : 1f;
+
+            // 자연 그립 포즈 — 컨트롤러 앵커 +Z(포인팅 축) 그대로면 손이 꼬치처럼 일자로 뻗는다.
+            // 시뮬레이터 실측 튜닝값(오른손 기준, 2026-07-16): 일직선 자세에서 살짝 오른쪽으로 기울어진 그립.
+            // 왼손은 미러 (y·z 부호 반전).
+            gloveRoot.transform.localPosition = new Vector3(0f, -0.015f, -0.02f);
+            gloveRoot.transform.localRotation = Quaternion.Euler(-16.787f, -7.495f * mx, -223.904f * mx);
+
+            gloveRoot.AddComponent<GloveFallbackVisual>();
 
             GlovePart(gloveRoot.transform, PrimitiveType.Sphere, new Vector3(0f, -0.01f, 0.02f),   new Vector3(0.075f, 0.035f, 0.1f), Vector3.zero);  // 손바닥
             GlovePart(gloveRoot.transform, PrimitiveType.Sphere, new Vector3(0f, -0.005f, -0.03f), new Vector3(0.06f, 0.045f, 0.05f), Vector3.zero);  // 손목 커프
@@ -278,6 +285,21 @@ namespace CampLantern.EditorTools
                 so.ApplyModifiedPropertiesWithoutUndo();
                 PrefabUtility.RecordPrefabInstancePropertyModifications(comp);
             }
+        }
+
+        /// <summary>검증용 — 리그 프리팹의 GloveVisual 로컬 포즈를 문자열로 반환 (ClaudeBridge Reflection.Invoke 용).</summary>
+        public static string DumpGlovePose()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(k_path);
+            if (prefab == null) return "prefab not found: " + k_path;
+
+            var sb = new System.Text.StringBuilder();
+            foreach (var tr in prefab.GetComponentsInChildren<Transform>(true))
+            {
+                if (tr.name != "GloveVisual") continue;
+                sb.Append($"{tr.parent.name}: pos={tr.localPosition} euler={tr.localEulerAngles} parts={tr.childCount}; ");
+            }
+            return sb.Length > 0 ? sb.ToString() : "GloveVisual not found";
         }
 
         /// <summary>장갑 전환 되돌리기 — 컨트롤러 비주얼 재활성 + 손 포즈 합성 끔 (OVRHands는 남겨둠, 무해).</summary>
