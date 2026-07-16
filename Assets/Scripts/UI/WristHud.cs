@@ -54,7 +54,17 @@ namespace CampLantern.UI
 
             var bg = NewChild("Bg", new Vector2(260f, 110f), Vector2.zero).AddComponent<Image>();
             bg.color = new Color(0.08f, 0.08f, 0.1f, 0.75f);
+            UISkin.TryApplyRounded(bg); // 라운드 스킨 (없으면 사각 단색)
             bg.raycastTarget = false;
+
+            // 코인 아이콘 (스킨 있을 때만)
+            var coinSprite = UISkin.Coin;
+            if (coinSprite != null)
+            {
+                var icon = NewChild("CoinIcon", new Vector2(40f, 30f), new Vector2(-92f, 24f)).AddComponent<Image>();
+                icon.sprite = coinSprite;
+                icon.raycastTarget = false;
+            }
 
             m_coinLabel = NewChild("Coins", new Vector2(240f, 46f), new Vector2(0f, 24f)).AddComponent<TextMeshProUGUI>();
             SetupLabel(m_coinLabel, 30f, new Color(1f, 0.85f, 0.4f, 1f)); // 골드 톤

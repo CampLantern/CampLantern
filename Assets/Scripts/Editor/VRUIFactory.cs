@@ -132,17 +132,19 @@ namespace CampLantern.EditorTools
             GameObject saved = null;
             try
             {
-                SetSize(root, 340f, 64f);
+                SetSize(root, 240f, 88f); // 필 스프라이트(210x90) 비율 유지 — 과도한 가로 늘림 금지
 
                 var bg = root.AddComponent<Image>();
                 bg.color = k_buttonBg;
+                VRUISkin.TryApplyButton(bg); // Colorful_UI 스킨 (없으면 위 단색 유지)
                 bg.raycastTarget = true; // 버튼 클릭 판정 대상
 
                 var button = root.AddComponent<Button>();
                 button.targetGraphic = bg;
 
-                var label = AddText(root.transform, "Label", "Button", 26f, font);
+                var label = AddText(root.transform, "Label", "Button", 30f, font);
                 Fill(label.rectTransform);
+                if (VRUISkin.HasSkin) label.color = VRUISkin.PillText(VRUISkin.PillColor.Blue); // 밝은 시안 필 위 진남색
 
                 var vrButton = root.AddComponent<VRUIButton>();
                 SetRef(vrButton, "m_button", button);
@@ -178,18 +180,35 @@ namespace CampLantern.EditorTools
 
                 var bg = root.AddComponent<Image>();
                 bg.color = k_panelBg;
+                VRUISkin.TryApplyPanel(bg); // Colorful_UI 스킨 (없으면 위 단색 유지)
                 bg.raycastTarget = true;
 
                 var panel = root.AddComponent<VRUIPanel>();
 
-                // 제목 (상단)
-                var title = AddText(root.transform, "Title", "Panel", 34f, font);
+                // 제목 헤더 필 — 패널 상단 모서리에 반쯤 걸치는 킷 시그니처 배치 (Title보다 먼저 = 뒤에 깔림)
+                if (VRUISkin.HasSkin)
+                {
+                    var headerGo = NewUI("Header");
+                    headerGo.transform.SetParent(root.transform, false);
+                    var headerRt = headerGo.GetComponent<RectTransform>();
+                    headerRt.anchorMin = new Vector2(0.5f, 1f);
+                    headerRt.anchorMax = new Vector2(0.5f, 1f);
+                    headerRt.pivot     = new Vector2(0.5f, 0.5f);
+                    headerRt.sizeDelta = new Vector2(280f, 76f); // 필 비율 3.7:1 이내
+                    headerRt.anchoredPosition = new Vector2(0f, 4f); // 상단 모서리 걸침
+                    var headerImg = headerGo.AddComponent<Image>();
+                    headerImg.raycastTarget = false;
+                    VRUISkin.TryApplyHeader(headerImg);
+                }
+
+                // 제목 — 헤더 필 위에 겹침 (스킨 없으면 기존 상단 배치와 동일 영역)
+                var title = AddText(root.transform, "Title", "Panel", 32f, font);
                 var titleRt = title.rectTransform;
-                titleRt.anchorMin = new Vector2(0f, 1f);
-                titleRt.anchorMax = new Vector2(1f, 1f);
-                titleRt.pivot     = new Vector2(0.5f, 1f);
-                titleRt.sizeDelta = new Vector2(-40f, 70f);
-                titleRt.anchoredPosition = new Vector2(0f, -20f);
+                titleRt.anchorMin = new Vector2(0.5f, 1f);
+                titleRt.anchorMax = new Vector2(0.5f, 1f);
+                titleRt.pivot     = new Vector2(0.5f, 0.5f);
+                titleRt.sizeDelta = new Vector2(280f, 76f);
+                titleRt.anchoredPosition = new Vector2(0f, VRUISkin.HasSkin ? 4f : -55f);
                 title.alignment = TextAlignmentOptions.Center;
 
                 // 콘텐츠 영역 (제목 아래 전체)
@@ -199,14 +218,14 @@ namespace CampLantern.EditorTools
                 contentRt.anchorMin = new Vector2(0f, 0f);
                 contentRt.anchorMax = new Vector2(1f, 1f);
                 contentRt.pivot     = new Vector2(0.5f, 1f);
-                contentRt.offsetMin = new Vector2(30f, 30f);
-                contentRt.offsetMax = new Vector2(-30f, -100f); // 상단 100px는 제목 몫
+                contentRt.offsetMin = new Vector2(28f, 28f);
+                contentRt.offsetMax = new Vector2(-28f, VRUISkin.HasSkin ? -64f : -96f); // 헤더 절반이 밖에 걸림
 
                 // 샘플 버튼 2개(수직 배치) — 즉시 테스트/시각 확인용. 실사용 시 복제/치환.
                 if (buttonPrefab != null)
                 {
                     AddSampleButton(buttonPrefab, contentRt, "확인",   0f);
-                    AddSampleButton(buttonPrefab, contentRt, "닫기", -84f);
+                    AddSampleButton(buttonPrefab, contentRt, "닫기", -104f); // 버튼 88 + 간격 16
                 }
 
                 // 레이/포크 인터랙션 자식 (Meta Template 복제 + _canvas 주입)

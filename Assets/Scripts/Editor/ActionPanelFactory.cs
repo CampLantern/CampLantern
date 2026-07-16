@@ -47,6 +47,7 @@ namespace CampLantern.EditorTools
             try
             {
                 ((RectTransform)root.transform).sizeDelta = new Vector2(360f, 62f);
+                VRUISkin.TryAddRowBackground(root); // 탭 바 배경 (스킨 없으면 무배경)
 
                 // 라벨 (좌측 고정, 길면 말줄임)
                 var labelGo = new GameObject("Label", typeof(RectTransform));
@@ -61,7 +62,7 @@ namespace CampLantern.EditorTools
                 label.text          = "항목";
                 label.fontSize      = 20f;
                 label.alignment     = TextAlignmentOptions.MidlineLeft;
-                label.color         = Color.white;
+                label.color         = VRUISkin.RowText; // 시안 행 바 위 진남색
                 label.raycastTarget = false;
                 label.richText      = false;
                 label.textWrappingMode = TextWrappingModes.NoWrap;
@@ -69,7 +70,7 @@ namespace CampLantern.EditorTools
                 if (font != null) label.font = font;
 
                 // 버튼 2개 (우측 정렬, VRUIButton 중첩)
-                var button1 = AddRowButton(baseButton, root.transform, new Vector2(-102f, 0f));
+                var button1 = AddRowButton(baseButton, root.transform, new Vector2(-114f, 0f));
                 var button2 = AddRowButton(baseButton, root.transform, new Vector2(-2f, 0f));
 
                 var row = root.AddComponent<ActionRow>();
@@ -90,7 +91,7 @@ namespace CampLantern.EditorTools
             rt.anchorMin = new Vector2(1f, 0.5f);
             rt.anchorMax = new Vector2(1f, 0.5f);
             rt.pivot     = new Vector2(1f, 0.5f);
-            rt.sizeDelta = new Vector2(96f, 50f);
+            rt.sizeDelta = new Vector2(104f, 54f); // 필 비율 유지 (1.9:1)
             rt.anchoredPosition = pos;
             PrefabUtility.RecordPrefabInstancePropertyModifications(rt);
 
@@ -111,6 +112,14 @@ namespace CampLantern.EditorTools
             try
             {
                 root.name = "ActionListPanel";
+
+                // UI 차별화: 액션 리스트(상점·배치·요리 등)는 초록 헤더 (소셜=보라, 인벤토리=파랑)
+                var header = root.transform.Find("Header");
+                if (header != null && VRUISkin.TryApplyPill(header.GetComponent<Image>(), VRUISkin.PillColor.Green))
+                {
+                    var panelTitle = root.GetComponentInChildren<TextMeshProUGUI>(true);
+                    if (panelTitle != null) panelTitle.color = VRUISkin.PillText(VRUISkin.PillColor.Green);
+                }
 
                 // 목록형이라 세로로 길게 (400x520 → 400x640). 인터랙션 자식은 anchors 0-1이라 따라온다.
                 ((RectTransform)root.transform).sizeDelta = new Vector2(400f, 640f);

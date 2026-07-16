@@ -33,12 +33,12 @@ namespace CampLantern.EditorTools
             new Vector3(-14f, 0f, -2f), new Vector3(6f, 0f, -11f),  new Vector3(-6f, 0f, -12f),
         };
 
-        // 흐름도 색 코딩: 낚시터=파랑, 사냥터=주황, 영지=초록
-        private static readonly (string label, string sceneName, Vector3 pos, string banner, Color panelTint)[] k_gates =
+        // 흐름도 색 코딩: 낚시터=파랑, 사냥터=주황(노랑 필), 영지=초록 — 현판 + 패널 헤더·버튼 필 동색
+        private static readonly (string label, string sceneName, Vector3 pos, string banner, Color panelTint, VRUISkin.PillColor pill)[] k_gates =
         {
-            ("낚시터", "FishingGround",  new Vector3(-5.5f, 0f, 6f),   "#4a7fae", new Color(0.10f, 0.15f, 0.22f, 0.92f)),
-            ("사냥터", "HuntZone_A",     new Vector3(0f, 0f, 7.5f),    "#c77b2f", new Color(0.20f, 0.14f, 0.08f, 0.92f)),
-            ("영지",   "EstateTemplate", new Vector3(5.5f, 0f, 6f),    "#4a7a55", new Color(0.10f, 0.18f, 0.12f, 0.92f)),
+            ("낚시터", "FishingGround",  new Vector3(-5.5f, 0f, 6f),   "#4a7fae", new Color(0.10f, 0.15f, 0.22f, 0.92f), VRUISkin.PillColor.Blue),
+            ("사냥터", "HuntZone_A",     new Vector3(0f, 0f, 7.5f),    "#c77b2f", new Color(0.20f, 0.14f, 0.08f, 0.92f), VRUISkin.PillColor.Yellow),
+            ("영지",   "EstateTemplate", new Vector3(5.5f, 0f, 6f),    "#4a7a55", new Color(0.10f, 0.18f, 0.12f, 0.92f), VRUISkin.PillColor.Green),
         };
 
         [MenuItem("Tools/Make Assets/Build Lobby Map (VR)")]
@@ -130,7 +130,7 @@ namespace CampLantern.EditorTools
 
             foreach (var g in k_gates)
             {
-                Transform gate = BuildPortalGate(gates, g.label, g.sceneName, g.pos, spawnPos, g.banner, g.panelTint);
+                Transform gate = BuildPortalGate(gates, g.label, g.sceneName, g.pos, spawnPos, g.banner, g.panelTint, pill: g.pill);
                 if (gate == null) return; // VR UI 프리팹 없음 — 경고는 BuildPortalGate가 출력
 
                 // 사냥터 관문엔 존 페넌트 3개 (그림 1의 숲/설원/해안 존 분기 상징)

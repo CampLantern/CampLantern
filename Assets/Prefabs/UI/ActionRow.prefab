@@ -9,6 +9,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 628767975783381226}
+  - component: {fileID: 1131383563516490438}
+  - component: {fileID: 5736550090520951635}
   - component: {fileID: 6081412302358769979}
   m_Layer: 0
   m_Name: ActionRow
@@ -30,8 +32,8 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4574669013167379143}
-  - {fileID: 1562096050622472673}
-  - {fileID: 8113858947736041771}
+  - {fileID: 5447752466225470508}
+  - {fileID: 7617711120873699301}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -39,6 +41,44 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 360, y: 62}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &1131383563516490438
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6039532513386426587}
+  m_CullTransparentMesh: 1
+--- !u!114 &5736550090520951635
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6039532513386426587}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 21300000, guid: 1c2304005f88b53429243f32bd436238, type: 3}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
 --- !u!114 &6081412302358769979
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -52,8 +92,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampLantern.UI.ActionRow
   m_label: {fileID: 5312912073495097531}
-  m_button1: {fileID: 6886240287147307172}
-  m_button2: {fileID: 4226433240827488366}
+  m_button1: {fileID: 119124507182108009}
+  m_button2: {fileID: 2561126510618125984}
 --- !u!1 &7502435348996396594
 GameObject:
   m_ObjectHideFlags: 0
@@ -129,7 +169,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColor: {r: 0.09, g: 0.27, b: 0.39, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -191,7 +231,7 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
---- !u!1001 &1283942100760221816
+--- !u!1001 &5757459170529863093
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -225,11 +265,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 96
+      value: 104
       objectReference: {fileID: 0}
     - target: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 50
+      value: 54
       objectReference: {fileID: 0}
     - target: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
       propertyPath: m_LocalPosition.x
@@ -261,7 +301,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: -102
+      value: -114
       objectReference: {fileID: 0}
     - target: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
       propertyPath: m_AnchoredPosition.y
@@ -296,15 +336,10 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
---- !u!224 &1562096050622472673 stripped
-RectTransform:
-  m_CorrespondingSourceObject: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
-  m_PrefabInstance: {fileID: 1283942100760221816}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &6886240287147307172 stripped
+--- !u!114 &119124507182108009 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 5638979007310293212, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
-  m_PrefabInstance: {fileID: 1283942100760221816}
+  m_PrefabInstance: {fileID: 5757459170529863093}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
   m_Enabled: 1
@@ -312,7 +347,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e16193dde26bf840b72f791be474d42, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampLantern.UI.VRUIButton
---- !u!1001 &8423669896817246386
+--- !u!224 &5447752466225470508 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
+  m_PrefabInstance: {fileID: 5757459170529863093}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1001 &7911522148544925308
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -346,11 +386,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 96
+      value: 104
       objectReference: {fileID: 0}
     - target: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 50
+      value: 54
       objectReference: {fileID: 0}
     - target: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
       propertyPath: m_LocalPosition.x
@@ -417,10 +457,10 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
---- !u!114 &4226433240827488366 stripped
+--- !u!114 &2561126510618125984 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 5638979007310293212, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
-  m_PrefabInstance: {fileID: 8423669896817246386}
+  m_PrefabInstance: {fileID: 7911522148544925308}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
   m_Enabled: 1
@@ -428,8 +468,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e16193dde26bf840b72f791be474d42, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampLantern.UI.VRUIButton
---- !u!224 &8113858947736041771 stripped
+--- !u!224 &7617711120873699301 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
-  m_PrefabInstance: {fileID: 8423669896817246386}
+  m_PrefabInstance: {fileID: 7911522148544925308}
   m_PrefabAsset: {fileID: 0}

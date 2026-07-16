@@ -35,9 +35,25 @@ namespace CampLantern.EditorTools
 
                 var bg = root.AddComponent<Image>();
                 bg.color = new Color(0.12f, 0.12f, 0.16f, 0.94f);
+                VRUISkin.TryApplyPanel(bg); // Colorful_UI 스킨 (없으면 위 단색 유지)
                 bg.raycastTarget = false;
 
-                var title = MakeText("Title", root.transform, font, 34f, new Vector2(0f, 92f), new Vector2(340f, 50f));
+                // 헤더 필 (핑크 — 결과/보상형 UI 차별화, 킷 COMPLETE 패널 문법)
+                if (VRUISkin.HasSkin)
+                {
+                    var headerGo = new GameObject("Header", typeof(RectTransform));
+                    headerGo.transform.SetParent(root.transform, false);
+                    var headerRt = (RectTransform)headerGo.transform;
+                    headerRt.sizeDelta = new Vector2(220f, 66f);
+                    headerRt.anchoredPosition = new Vector2(0f, 122f); // 상단 모서리(+130) 걸침
+                    var headerImg = headerGo.AddComponent<Image>();
+                    headerImg.raycastTarget = false;
+                    VRUISkin.TryApplyPill(headerImg, VRUISkin.PillColor.Pink);
+                }
+
+                var title = MakeText("Title", root.transform, font, 32f,
+                                     VRUISkin.HasSkin ? new Vector2(0f, 122f) : new Vector2(0f, 92f),
+                                     new Vector2(220f, 66f));
                 title.text = "획득!";
 
                 var body = MakeText("Body", root.transform, font, 26f, new Vector2(0f, 8f), new Vector2(340f, 120f));
@@ -47,14 +63,19 @@ namespace CampLantern.EditorTools
                 var buttonGo = new GameObject("ConfirmButton", typeof(RectTransform));
                 buttonGo.transform.SetParent(root.transform, false);
                 var brt = (RectTransform)buttonGo.transform;
-                brt.sizeDelta = new Vector2(180f, 56f);
+                brt.sizeDelta = new Vector2(170f, 66f); // 필 비율 유지 (2.6:1)
                 brt.anchoredPosition = new Vector2(0f, -84f);
                 var bImg = buttonGo.AddComponent<Image>();
                 bImg.color = new Color(0.25f, 0.45f, 0.75f, 1f);
+                VRUISkin.TryApplyButton(bImg, VRUISkin.ButtonStyle.Positive); // 긍정 액션 — 초록 필 (없으면 단색)
                 buttonGo.AddComponent<Button>();
                 var vruiButton = buttonGo.AddComponent<VRUIButton>();
                 var bLabel = MakeText("Label", buttonGo.transform, font, 26f, Vector2.zero, new Vector2(170f, 46f));
                 bLabel.text = "확인";
+
+                // 흰 패널 위 본문은 진보라 — 제목(핑크 필 위)·버튼 라벨(초록 필 위)은 흰색 유지
+                if (VRUISkin.HasSkin)
+                    body.color = VRUISkin.BodyText;
 
                 var panel = root.AddComponent<FishResultPanel>();
                 SetRef(panel, "m_title", title);

@@ -75,7 +75,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColor: {r: 0.09, g: 0.27, b: 0.39, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -146,6 +146,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 446354428635353216}
+  - component: {fileID: 9196749936655790056}
+  - component: {fileID: 6236726548976809086}
   - component: {fileID: 315857198015080140}
   m_Layer: 0
   m_Name: SocialPlayerRow
@@ -175,6 +177,44 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 340, y: 60}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &9196749936655790056
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8652211726918052163}
+  m_CullTransparentMesh: 1
+--- !u!114 &6236726548976809086
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8652211726918052163}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 21300000, guid: 1c2304005f88b53429243f32bd436238, type: 3}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
 --- !u!114 &315857198015080140
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -223,11 +263,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 130
+      value: 124
       objectReference: {fileID: 0}
     - target: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 52
+      value: 56
       objectReference: {fileID: 0}
     - target: {fileID: 323367045408225689, guid: e40d16af768e8a845bee37237d2d62f3, type: 3}
       propertyPath: m_LocalPosition.x

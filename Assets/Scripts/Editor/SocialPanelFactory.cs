@@ -50,6 +50,7 @@ namespace CampLantern.EditorTools
             try
             {
                 ((RectTransform)root.transform).sizeDelta = new Vector2(340f, 60f);
+                VRUISkin.TryAddRowBackground(root); // 탭 바 배경 (스킨 없으면 무배경)
 
                 // 라벨 (좌)
                 var labelGo = new GameObject("Label", typeof(RectTransform));
@@ -61,7 +62,7 @@ namespace CampLantern.EditorTools
                 label.text          = "P0";
                 label.fontSize      = 26f;
                 label.alignment     = TextAlignmentOptions.MidlineLeft;
-                label.color         = Color.white;
+                label.color         = VRUISkin.RowText; // 시안 행 바 위 진남색
                 label.raycastTarget = false;
                 label.richText      = false;
                 if (font != null) label.font = font;
@@ -70,7 +71,7 @@ namespace CampLantern.EditorTools
                 var btnGo = (GameObject)PrefabUtility.InstantiatePrefab(baseButton);
                 btnGo.transform.SetParent(root.transform, false);
                 var brt = (RectTransform)btnGo.transform;
-                brt.sizeDelta = new Vector2(130f, 52f);
+                brt.sizeDelta = new Vector2(124f, 56f); // 필 비율 유지 (2.2:1)
                 brt.anchoredPosition = new Vector2(95f, 0f);
                 PrefabUtility.RecordPrefabInstancePropertyModifications(brt);
                 var btnLabel = btnGo.GetComponentInChildren<TextMeshProUGUI>(true);
@@ -126,7 +127,7 @@ namespace CampLantern.EditorTools
                 status.text          = "미접속";
                 status.fontSize      = 24f;
                 status.alignment     = TextAlignmentOptions.Center;
-                status.color         = new Color(0.85f, 0.9f, 0.95f, 1f);
+                status.color         = VRUISkin.HasSkin ? VRUISkin.BodyText : new Color(0.85f, 0.9f, 0.95f, 1f);
                 status.raycastTarget = false;
                 status.richText      = false;
                 if (font != null) status.font = font;
@@ -151,7 +152,7 @@ namespace CampLantern.EditorTools
                 rrt.anchorMax = new Vector2(1f, 1f);
                 rrt.pivot     = new Vector2(0.5f, 1f);
                 rrt.sizeDelta = new Vector2(-12f, 0f);
-                rrt.anchoredPosition = new Vector2(0f, -136f);
+                rrt.anchoredPosition = new Vector2(0f, -160f); // 마이크 버튼(88 높이) 아래 간격 확보
                 var vlg = rowsGo.AddComponent<VerticalLayoutGroup>();
                 vlg.spacing = 6f;
                 vlg.childAlignment = TextAnchor.UpperCenter;

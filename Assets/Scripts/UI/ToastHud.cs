@@ -60,6 +60,7 @@ namespace CampLantern.UI
             brt.offsetMax = Vector2.zero;
             var bgImage = bg.AddComponent<Image>();
             bgImage.color = new Color(0.08f, 0.08f, 0.1f, 0.7f);
+            UISkin.TryApplyPill(bgImage); // 알림은 보라 필 (없으면 사각 단색)
             bgImage.raycastTarget = false;
 
             var labelGo = new GameObject("Label", typeof(RectTransform));

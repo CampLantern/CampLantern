@@ -159,7 +159,7 @@ namespace CampLantern.EditorTools
             items.Add((t.name, t.position, b));
         }
 
-        private static void CaptureView(string filePath, Vector3 pos, Quaternion rot)
+        internal static void CaptureView(string filePath, Vector3 pos, Quaternion rot)
         {
             var camGo = new GameObject("TempAuditCamera");
             var cam = camGo.AddComponent<Camera>();

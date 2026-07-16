@@ -43,6 +43,7 @@ namespace CampLantern.EditorTools
             {
                 var rt = (RectTransform)root.transform;
                 rt.sizeDelta = new Vector2(360f, 72f);
+                VRUISkin.TryAddRowBackground(root); // 탭 바 배경 (스킨 없으면 무배경)
 
                 // 아이콘 (좌)
                 var iconGo = UIChild("Icon", root.transform, new Vector2(64f, 64f), new Vector2(-140f, 0f));
@@ -56,7 +57,7 @@ namespace CampLantern.EditorTools
                 label.text          = "아이템  x1";
                 label.fontSize      = 28f;
                 label.alignment     = TextAlignmentOptions.MidlineLeft;
-                label.color         = Color.white;
+                label.color         = VRUISkin.RowText; // 시안 행 바 위 진남색
                 label.raycastTarget = false;
                 if (font != null) label.font = font;
 
@@ -83,20 +84,33 @@ namespace CampLantern.EditorTools
 
                 var bg = root.AddComponent<Image>();
                 bg.color = new Color(0.12f, 0.12f, 0.16f, 0.92f);
+                VRUISkin.TryApplyPanel(bg); // Colorful_UI 스킨 (없으면 위 단색 유지)
                 bg.raycastTarget = false;
 
-                // 제목 (상단)
-                var titleGo = UIChild("Title", root.transform, new Vector2(0f, 60f), new Vector2(0f, -8f));
+                // 헤더 필 (파랑 — UI 차별화: 소셜=보라, 액션=초록) + 제목. 스킨 없으면 기존 상단 텍스트만.
+                if (VRUISkin.HasSkin)
+                {
+                    var headerGo = UIChild("Header", root.transform, new Vector2(280f, 76f), new Vector2(0f, 4f));
+                    var headerRt = (RectTransform)headerGo.transform;
+                    headerRt.anchorMin = new Vector2(0.5f, 1f);
+                    headerRt.anchorMax = new Vector2(0.5f, 1f);
+                    headerRt.pivot     = new Vector2(0.5f, 0.5f);
+                    var headerImg = headerGo.AddComponent<Image>();
+                    headerImg.raycastTarget = false;
+                    VRUISkin.TryApplyPill(headerImg, VRUISkin.PillColor.Blue);
+                }
+
+                var titleGo = UIChild("Title", root.transform, new Vector2(280f, 76f),
+                                      VRUISkin.HasSkin ? new Vector2(0f, 4f) : new Vector2(0f, -38f));
                 var titleRt = (RectTransform)titleGo.transform;
-                titleRt.anchorMin = new Vector2(0f, 1f);
-                titleRt.anchorMax = new Vector2(1f, 1f);
-                titleRt.pivot     = new Vector2(0.5f, 1f);
-                titleRt.sizeDelta = new Vector2(0f, 60f);
+                titleRt.anchorMin = new Vector2(0.5f, 1f);
+                titleRt.anchorMax = new Vector2(0.5f, 1f);
+                titleRt.pivot     = new Vector2(0.5f, 0.5f);
                 var title = titleGo.AddComponent<TextMeshProUGUI>();
                 title.text          = "인벤토리";
-                title.fontSize      = 34f;
+                title.fontSize      = 32f;
                 title.alignment     = TextAlignmentOptions.Center;
-                title.color         = Color.white;
+                title.color         = VRUISkin.HasSkin ? VRUISkin.PillText(VRUISkin.PillColor.Blue) : Color.white;
                 title.raycastTarget = false;
                 if (font != null) title.font = font;
 

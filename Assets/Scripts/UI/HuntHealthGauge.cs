@@ -73,6 +73,7 @@ namespace CampLantern.UI
 
             var bg = NewChild("Bg", transform, new Vector2(500f, 120f), Vector2.zero).AddComponent<Image>();
             bg.color = new Color(0.08f, 0.08f, 0.1f, 0.7f);
+            UISkin.TryApplyRounded(bg); // 라운드 스킨 (없으면 사각 단색)
             bg.raycastTarget = false;
 
             m_label = NewChild("Label", transform, new Vector2(470f, 50f), new Vector2(0f, 26f))

@@ -409,7 +409,8 @@ namespace CampLantern.EditorTools
         /// </summary>
         public static Transform BuildPortalGate(Transform parent, string title, string sceneName, Vector3 position,
                                                 Vector3 facingFrom, string bannerHex, Color panelTint,
-                                                string buttonLabel = "이동")
+                                                string buttonLabel = "이동",
+                                                VRUISkin.PillColor pill = VRUISkin.PillColor.Purple)
         {
             var panelPrefab  = AssetDatabase.LoadAssetAtPath<GameObject>(k_panelPrefabPath);
             var buttonPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(k_buttonPrefabPath);
@@ -439,10 +440,16 @@ namespace CampLantern.EditorTools
             panelGo.transform.localPosition = new Vector3(0f, 1.35f, 0f);
             panelGo.transform.localScale = Vector3.one * 0.0018f;
 
-            // 단일 버튼용 축소 (400x520 → 400x300px = 0.72 x 0.54 m). 인터랙션 자식은 anchors 0-1이라 따라온다.
+            // 단일 버튼용 크기 — 흰 카드 + 헤더 걸침 + 버튼 하나 (0.65 x 0.59 m).
+            // 인터랙션 자식은 anchors 0-1이라 따라온다.
             var panelRt = panelGo.GetComponent<RectTransform>();
-            panelRt.sizeDelta = new Vector2(400f, 300f);
-            panelGo.GetComponent<Image>().color = panelTint;
+            panelRt.sizeDelta = new Vector2(360f, 330f);
+            // 색 코딩: 헤더 필 + 버튼을 목적지 색으로 (흰 카드 본체는 원색 유지). 스킨 없으면 기존 틴트 방식.
+            var panelImg = panelGo.GetComponent<Image>();
+            if (panelImg.sprite == null) panelImg.color = panelTint;
+            var headerChild = panelGo.transform.Find("Header");
+            if (headerChild != null)
+                VRUISkin.TryApplyPill(headerChild.GetComponent<Image>(), pill);
 
             var panel = panelGo.GetComponent<VRUIPanel>();
 
@@ -457,15 +464,22 @@ namespace CampLantern.EditorTools
             btnRt.anchorMin = new Vector2(0.5f, 1f);
             btnRt.anchorMax = new Vector2(0.5f, 1f);
             btnRt.pivot     = new Vector2(0.5f, 1f);
-            btnRt.anchoredPosition = new Vector2(0f, -40f);
+            btnRt.anchoredPosition = new Vector2(0f, -60f); // 헤더 아래 본문 중앙 (콘텐츠 기준)
 
             var btnLabel = btnGo.GetComponentInChildren<TextMeshProUGUI>(true);
             if (btnLabel != null) btnLabel.text = buttonLabel; // 에디터에서도 보이게 굽기 (런타임 Push와 별개)
+            var btnImg = btnGo.GetComponent<Image>();
+            bool pillApplied = btnImg != null && btnImg.sprite != null && VRUISkin.TryApplyPill(btnImg, pill); // 헤더와 동색
+            if (pillApplied && btnLabel != null) btnLabel.color = VRUISkin.PillText(pill);
             var button = btnGo.GetComponent<VRUIButton>();
 
             // 제목도 에디터 시점에 굽는다 (버튼 제거 후 남은 TMP = Title)
             var title2 = panelGo.GetComponentInChildren<TextMeshProUGUI>(true);
-            if (title2 != null && title2 != btnLabel) title2.text = title;
+            if (title2 != null && title2 != btnLabel)
+            {
+                title2.text = title;
+                if (pillApplied) title2.color = VRUISkin.PillText(pill); // 헤더 필 밝기에 맞는 라벨색
+            }
 
             var controller = panelGo.AddComponent<PortalPanelController>();
             var so = new SerializedObject(controller);
