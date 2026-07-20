@@ -122,9 +122,11 @@ namespace CampLantern.EditorTools
         public static void PlaceRock(Transform parent, Vector3 pos, float scale)
         {
             int h = PosHash(pos, 11);
-            if (PlaceEnv(parent, k_rockSet[h % k_rockSet.Length], pos, h % 360, scale * k_rockPrefabScale, "Rock") != null) return;
-            Part(parent, PrimitiveType.Sphere, pos + new Vector3(0f, 0.12f * scale, 0f),
+            var real = PlaceEnv(parent, k_rockSet[h % k_rockSet.Length], pos, h % 360, scale * k_rockPrefabScale, "Rock");
+            if (real != null) { AddRockCollider(real); return; }
+            var fallback = Part(parent, PrimitiveType.Sphere, pos + new Vector3(0f, 0.12f * scale, 0f),
                  new Vector3(0.5f, 0.3f, 0.45f) * scale, Stone, name: "Rock");
+            AddRockCollider(fallback);
         }
 
         /// <summary>수풀 배치 — Bush/Fern/Plant 프리팹 변주, 폴백은 잎색 구체.</summary>
@@ -323,13 +325,80 @@ namespace CampLantern.EditorTools
         {
             // 실물 나무 (AO-Trees) — 위치 해시로 종류·방향 결정적 변주
             int h = PosHash(pos);
-            if (PlaceEnv(parent, k_treeSet[h % k_treeSet.Length], pos, h % 360, scale, "Tree") != null) return;
+            var real = PlaceEnv(parent, k_treeSet[h % k_treeSet.Length], pos, h % 360, scale, "Tree");
+            if (real != null) { AddTrunkCollider(real); return; }
 
             Transform tree = Group(parent, "Tree", pos);
             tree.localScale = Vector3.one * scale;
             Part(tree, PrimitiveType.Cylinder, new Vector3(0f, 0.9f, 0f),  new Vector3(0.35f, 0.9f, 0.35f),  Trunk);
             Part(tree, PrimitiveType.Sphere,   new Vector3(0f, 2.1f, 0f),  new Vector3(1.7f, 1.5f, 1.7f),    LeafDark);
             Part(tree, PrimitiveType.Sphere,   new Vector3(0f, 3.05f, 0f), new Vector3(1.15f, 1.05f, 1.15f), LeafLight);
+            AddTrunkCollider(tree.gameObject);
+        }
+
+        /// <summary>
+        /// 나무/바위 관통 방지용 콜라이더 — MeshCollider 대신 렌더러 바운즈로 크기를 잰 프리미티브
+        /// 콜라이더를 붙인다(성능·안정성 — Quest에서 비볼록 MeshCollider는 물리 비용이 크고, 이 프로젝트
+        /// 소품 상당수가 실물 에셋 프리팹이라 원본 메시 형태를 알 수 없어 바운즈 기반 근사가 유일한 범용
+        /// 해법). 텔레포트 아크가 소품을 뚫고 지나가던 문제(tech-stack-decisions.md §텔레포트 이동)의
+        /// 후속 수정 — Ground만 유일한 TeleportInteractable이라 콜라이더 없는 소품은 아크가 그냥 통과했다.
+        /// idempotent. 실물 에셋 프리팹 상당수가 자체 콜라이더를 이미 갖고 있다(2026-07-20 실측 —
+        /// FantasyEnvironments 나무는 전부 CapsuleCollider 내장, 바위 일부는 MeshCollider 내장). 이미
+        /// 프리미티브(비-Mesh) 콜라이더가 있으면 그대로 두고, MeshCollider면 지우고 교체한다.
+        /// </summary>
+        private static void AddTrunkCollider(GameObject go) => ReplaceWithPrimitiveCollider(go, isRock: false);
+
+        /// <summary>바위 전용 콜라이더 — 실루엣 전체를 감싸는 구체. AddTrunkCollider 주석 참조.</summary>
+        private static void AddRockCollider(GameObject go) => ReplaceWithPrimitiveCollider(go, isRock: true);
+
+        private static void ReplaceWithPrimitiveCollider(GameObject go, bool isRock)
+        {
+            var existing = go.GetComponent<Collider>();
+            if (existing != null)
+            {
+                if (existing is MeshCollider) Object.DestroyImmediate(existing);
+                else return; // 이미 프리미티브 콜라이더 보유 — 그대로 둔다
+            }
+
+            Bounds b = GetLocalBounds(go);
+            if (b.size == Vector3.zero) return;
+
+            if (isRock)
+            {
+                var sphere = go.AddComponent<SphereCollider>();
+                sphere.center = b.center;
+                sphere.radius = Mathf.Max(b.extents.x, b.extents.z) * 0.85f;
+            }
+            else
+            {
+                var capsule = go.AddComponent<CapsuleCollider>();
+                capsule.direction = 1; // Y축
+                // 캐노피 전체 폭이 아니라 줄기만 — 바운즈 XZ의 15%. 높이는 지면(로컬 Y=0, 이 프로젝트
+                // 나무 에셋 공통 피벗 관례)에서 캐노피 아래쪽까지(전체 높이 75%)만 막아 위쪽은 그대로 둔다.
+                float height = b.size.y * 0.75f;
+                capsule.height = height;
+                capsule.center = new Vector3(b.center.x, height * 0.5f, b.center.z);
+                capsule.radius = Mathf.Min(b.size.x, b.size.z) * 0.15f;
+            }
+        }
+
+        /// <summary>자식 렌더러들을 합친 바운즈를 <paramref name="go"/>의 로컬 좌표로 변환해 반환한다.</summary>
+        private static Bounds GetLocalBounds(GameObject go)
+        {
+            // includeInactive: true — 실물 에셋 트리는 LOD 자식 중 일부가 기본 비활성일 수 있다.
+            var renderers = go.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0) return new Bounds(Vector3.zero, Vector3.zero);
+
+            Bounds world = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++) world.Encapsulate(renderers[i].bounds);
+
+            Vector3 scale = go.transform.lossyScale;
+            Vector3 localCenter = go.transform.InverseTransformPoint(world.center);
+            Vector3 localSize = new Vector3(
+                world.size.x / Mathf.Max(0.0001f, Mathf.Abs(scale.x)),
+                world.size.y / Mathf.Max(0.0001f, Mathf.Abs(scale.y)),
+                world.size.z / Mathf.Max(0.0001f, Mathf.Abs(scale.z)));
+            return new Bounds(localCenter, localSize);
         }
 
         /// <summary>모닥불 — 돌 링 + 장작 + 불꽃 + 웜 라이트. withSeats면 통나무 의자 4개 추가.</summary>
