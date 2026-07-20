@@ -71,6 +71,31 @@ Voice 2.63(Asset Store)은 Realtime **4** 기반인데 Fusion 2.1은 Realtime **
 - **런타임 선행조건**: `OVRCameraRig`(`AvatarBehaviourFusion`이 `OVRManager.instance`로 찾음) + `OvrAvatarManager`(Style2Meta) + `SampleInputManager`가 있어야 함. **이 셋은 씬에 배치하지 않고 `Player.PersistentPlayer`(`Resources/PersistentPlayer.prefab`)에 실어 `DontDestroyOnLoad`로 어느 씬에서든 자동 공급한다** — 씬에 중복 배치하면 OVRManager/OvrAvatarManager 이중 인스턴스로 깨진다(예전엔 P0Playground에 in-scene AvatarSystem으로 배선했으나 영속 플레이어로 이관). 씬에 남는 네트워크 배선은 `AvatarController`(아바타)와 음성(`VoiceController`+`PlayerMute`) — 둘 다 Network 오브젝트에 붙는 "네트워크 소셜 스택"이며, `P0PlaySceneFactory`/`RoomScenesFactory` 재생성 시 공통 배선한다(기존 씬은 `Tools > Make Assets > Wire Networked Social Stack Into Room Scenes`로 사냥터·낚시터에 idempotent 패치). 낚시터도 드롭인 멀티라 근접 음성을 넣지만, 낚시 행위 자체는 로컬 로직이다(공간만 멀티 — `[[social-cooperation]]`).
 - 스폰 프리팹은 Fusion 프리팹 테이블에 있어야 함 — 임포트로 자동 베이킹되나 무음 실패 시 `Tools > Fusion > Rebuild Prefab Table`.
 
+### 더미 러너의 유령 사본 + "사람" 표시 (2026-07-17 시도, 2026-07-20 완결 — 실기 확인 대기)
+Fusion Shared Mode에서 관전용 더미 러너(§"에디터 더미 2인 테스트")가 세션에 합류하면, **실플레이어 쪽에서 스폰된 모든 NetworkObject**(아바타 `AvatarBehaviourFusion`뿐 아니라 사냥감 `HuntTarget`/`NetworkedHuntMonster`도)가 더미 러너 시점에도 프록시로 복제된다 — 같은 프로세스·같은 리그(카메라)라 그 프록시가 실플레이어와 같은 좌표로 따라붙어 "유령 사본"처럼 보인다(아바타뿐 아니라 사슴·곰도 겹쳐 보임).
+
+**유령 사본 제거(해결)**: GameObject 자체를 `SetActive(false)`로 통째로 비활성화. `HideDummyRunnerProxies()`(구 `HideDummyAvatarProxies`)가 매 폴링마다 더미 러너 스코프에서 `AvatarBehaviourFusion`·`HuntTarget`·(`HuntZoneHarness`는)`NetworkedHuntMonster`를 훑어 처리. Renderer만 끄는 1차 시도는 Meta Avatar SDK의 `RefreshAllActives()` 재활성화 경합에 짐 — GameObject 통째 비활성화로 해결. `HuntZoneHarness`에만 있고 `P0Harness`엔 누락됐던 것과 아바타 타입만 처리하고 사냥감 타입을 놓쳤던 것, 2건 모두 나중에 채움. **새 더미 러너 기반 하네스나 새 NetworkObject 스폰 타입이 생기면 이 메서드에 같이 추가할 것.**
+
+**더미도 "사람"으로 보이게 — Meta Avatar SDK 스폰은 최종적으로 포기, 로컬 프리미티브 플레이스홀더로 대체.** `SpawnDummyPersonAvatar()`가 캡슐+구 프리미티브(파란색, Fusion `NetworkObject` 아님 — 순수 로컬 GameObject)를 고정 위치에 세운다. 이 더미 기능의 목적이 네트워크 상태(협동 사냥 기여·보상 등) 검증이라 시각 표현이 진짜 Meta 아바타일 필요가 없다는 게 최종 판단.
+
+Meta Avatar SDK로 4번 연속 다른 이유로 실패한 뒤 내린 결정이었다 — 각 실패가 서로 다른, 문서화 안 된 SDK 내부 동작이었어서 기록해둔다:
+1. **`onBeforeSpawned` 안에서 즉시 `enabled = false`** → 모델이 아예 안 뜸. `AvatarBehaviourFusion.Spawned()`(외형 로드하는 `AvatarEntity` 부착)가 `enabled`와 무관하게 실행되긴 하지만(나중에 실측 확인), 당시엔 이걸 몰라서 원인을 잘못 짚음.
+2. **코루틴으로 2프레임 미룬 뒤 `enabled = false`** → `hasAvatarEntity=True`까지는 됐지만 `visibleRenderers=0`(LOD 렌더러 4개 전부 비활성). 2프레임 동안 `FixedUpdateNetwork()`가 여러 번 돌아 카메라 위치까지 Lerp 이동해버려("Fusion은 프레임당 여러 네트워크 틱을 처리할 수 있음"), 카메라와 거의 겹친 위치에서 Avatar SDK가 자기 방어적으로 LOD를 숨기는 것으로 추정.
+3. **`enabled`는 안 건드리고 리플렉션으로 `_cameraRig` 필드만 null화(1프레임 뒤)** → 카메라 추적은 확실히 멎었는데(포지션 정상) **여전히 `visibleRenderers=0`, 10초를 기다려도 그대로.** 포지션 문제가 아니라는 게 이때 확정됨.
+4. **`inputAuthority`를 더미 자신의 `LocalPlayer`로 부여** → 오브젝트 이름이 `RemoteAvatar`에서 `LocalAvatar`로 바뀌고 `LOD00_combined_1stPerson_geometry`가 activeInHierarchy=True로 켜짐 — **하지만 이건 "1인칭 전용" 메시(자기 자신의 눈으로 볼 때 쓰는 손/팔 위주 지오메트리)라 3인칭에서 남이 보라고 만든 게 아니고, 3인칭용 `SPACE_Head`/`SPACE_Torso` 등은 오히려 `enabled=False`로 꺼져 있었다.**
+   - **근본 원인**: `AvatarBehaviourFusion.OnAvatarDataStreamChanged()`에 `if (Object.HasStateAuthority) return;` 가드가 있다 — 외형 스트리밍 데이터는 **State Authority가 아닌 원격 관전자 쪽에서만** 수신한다. Shared Mode에서 더미는 자기가 스폰한 오브젝트의 State Authority를 항상 자기 자신이 갖는다(피할 수 없음). Input Authority까지 없으면(1~3번 시도) "로컬 로딩도 안 되고 스트리밍 수신도 안 되는" 사각지대에 빠지고, Input Authority를 주면(4번) "내 아바타"로 취급돼 1인칭 전용 메시만 켜진다. **이 SDK는 "State Authority면서 Input Authority는 없는" 조합(=진짜 두 번째 헤드셋 없이 같은 프로세스에서 남의 아바타를 흉내내는 것)을 지원하지 않는다** — 진짜 원격 관전자(별도 Fusion 클라이언트, State Authority 없음)이거나 진짜 로컬 소유자(Input Authority 있음)여야 정상 로드되도록 설계됨.
+- **디버깅 방법 메모**: 이 항목 전체가 Unity 브릿지(`mcp__claude-bridge__unity_call`, `Reflection.Invoke`로 `EditorApplication.isPlaying` 토글 + `Debug.Log`로 렌더러/포지션/authority 상태를 직접 찍고 Editor.log grep)로 Play 모드에 들어가 실제 로그를 읽으면서 진행했다 — 그런데도 4번 다 달랐다. **Fusion/Meta Avatar SDK 조합처럼 authority 분기 로직이 소스에 흩어져 있고 문서화 안 된 영역은, "이 정도면 되지 않을까" 하는 가정 기반 반복보다, 처음부터 소스(`AvatarBehaviourFusion.cs`)를 authority 가드까지 전부 읽고 "이 시나리오가 애초에 지원되는가"부터 확인하는 게 빨랐을 것.** 같은 프로세스 안의 "가짜 두 번째 플레이어"로 남에게 보이는 아바타를 재현하려는 시도 자체가 이 SDK 설계와 안 맞는다는 걸 1번 시도 실패 시점에 소스부터 봤다면 더 일찍 알 수 있었다.
+- **아직 실기(헤드셋) 재검증 전** — 플레이스홀더가 실제로 보이는지 확인 필요(단, Unity 기본 프리미티브라 SDK 로딩 리스크는 없음).
+
+### Locomotor의 TunnelingEffect 이중 인스턴스 — 시뮬레이터 테스트 시 화면 암전 (2026-07-17 시도, 2026-07-20 실제 수정)
+인터랙션 리그(`Add Interaction To VR Rig`)가 들여오는 Meta Interaction SDK의 Locomotor 프리팹 안에는 이동 편의(comfort) 비네트용 소스 프리팹 `TunnelingEffect.prefab` 인스턴스가 **두 개** 있다. **주의: 소스 파일명은 "TunnelingEffect"지만, Locomotor.prefab에 인스턴스화되며 이름이 오버라이드돼 씬/프리팹 계층엔 그 이름의 GameObject가 존재하지 않는다** (2026-07-20, `Library/PackageCache/.../Locomotion/Locomotor.prefab` 직접 확인):
+  ① GameObject **`SmoothMovementTunneling`**(`LocomotionTunneling`이 ComfortTurning/ComfortMoving에 사용 — 이동/회전할 때마다 비네트를 켠다),
+  ② GameObject **`WallPenetrationTunneling`**(동명 컴포넌트가 사용 — 트래킹된 실제 머리 위치와 캐릭터 컨트롤러가 강제한 논리적 머리 위치 사이를 레이캐스트해서 뭔가 걸리면 "벽 관통"으로 판단해 자기 쪽 비네트를 강제로 켠다).
+- **헤드셋 없이 Meta XR Simulator로 테스트하면** 실제로 걷는 게 아니라 캐릭터만 조이스틱으로 이동하므로, 트래킹 위치(거의 고정)와 논리 위치(계속 이동) 사이 간격이 점점 벌어져 그 사이 바닥/벽에 항상 레이가 걸린다 — 그래서 **이동만 하면 방향과 무관하게 화면이 가려진다.**
+- **1차 시도(2026-07-17, GameObject "TunnelingEffect"만 비활성화)는 이름을 소스 프리팹 파일명으로 착각해 아무 GameObject도 못 찾고 조용히 no-op했다** — `changed == 0`이라 "이미 정리됨" 로그만 남기고 실제로는 아무것도 안 꺼진 채 "해결"로 잘못 기록됨. 사용자가 이동 시 시야 좁아짐/암전이 여전하다고 재확인해 드러남.
+- **2026-07-20 실제 수정**: `VRPlayerRigFactory.DisableLocomotionComfortVignette()`의 이름 매칭을 `SmoothMovementTunneling`/`WallPenetrationTunneling`으로 교정. ClaudeBridge(`Reflection.Invoke` → `EditorApplication.ExecuteMenuItem`)로 메뉴를 재실행해 `VRPlayerRig.prefab`에 새 `m_IsActive: 0` 오버라이드가 실제로 추가됨을 diff로 확인(1차 시도 때는 diff가 아예 없었다 — "diff가 비어있다"는 게 이 종류의 이름 불일치 버그를 잡는 가장 확실한 신호). `LocomotionTunneling`은 원복(리셋 로직 보유) 유지, idempotent.
+- **실기(헤드셋) 재검증 전** — 구조적으로는 올바른 오브젝트가 꺼졌음을 확인했지만, 실제로 암전이 사라졌는지는 아직 플레이 확인 필요.
+
 ### Meta XR Simulator — Activate 메뉴로만 켠다 (manifest 편집 금지) (2026-07-08 확정)
 헤드셋 없이 에디터에서 VR을 테스트하려면 시뮬레이터가 필수다(XR 런타임을 제공). 없으면 Play 진입 시 OpenXR가 HMD를 못 찾아 `XR_ERROR_FORM_FACTOR_UNAVAILABLE`로 실패한다.
 - **`Meta > Meta XR Simulator > Activate` 메뉴로 켠다.** 이 메뉴(Core SDK의 `MetaXRSimulator` 폴더 제공)가 `XR_SELECTED_RUNTIME_JSON`을 **standalone 설치본**(예: `C:\Program Files\MetaXRSimulator\vXXX\meta_openxr_simulator.json`)으로 설정한다. Play 검증은 브릿지로 `EditorApplication.ExecuteMenuItem("Meta/Meta XR Simulator/Activate")` 호출.
@@ -84,6 +109,7 @@ Voice 2.63(Asset Store)은 Realtime **4** 기반인데 Fusion 2.1은 Realtime **
 - **정식 방법**: `MetaAvatarsSDK/Assets/Sample Assets/Preset Selector`로 소량 선택 → 패키징. (전체 `Package Presets`는 Standard Quest+Rift ~300MB라 과함. `RepackageWithPresetSelections(bool[] quality, bool[] avatars)`는 bool[] 배열 인자라 브릿지/리플렉션 자동화가 까다로움.)
 - **이번 처리**: 앞 8종(0~7) × Quest+Rift 소스 .glb를 직접 `PresetAvatars_Rift.zip`/`_Quest.zip`에 flat 엔트리(`4_rift.glb` 등, 로드 경로와 일치)로 넣어 소량 패키징(~73MB). 런타임이 `Added zip source .../PresetAvatars_Rift.zip`로 직접 읽어 정상 로드 확인(로그: `ClipUpgradeHelper hands_riftController`, NotFound 소멸).
 - **주의(대용량 미커밋)**: 채운 zip(35~38MB×2)과 `SampleAssetsUnzipped/`(660MB)는 저장소에 커밋하지 않는다. zip은 빈 상태로 이미 추적 중이라 `git update-index --assume-unchanged`로 로컬 변경을 숨김 — **팀원은 클론 후 빈 zip을 받으므로 각자 Preset Selector(또는 동일 수동 방식)로 채워야** 에디터 아바타가 뜬다. `AvatarController.m_presetAvatarCount`(현재 6)는 패키징한 개수(≤8) 이하로 유지.
+- **`assume-unchanged`는 로컬 전용 플래그라 예고 없이 풀릴 수 있다 (2026-07-20 실제 발생).** 그 시점 이후 zip 4종이 469바이트가 아니라 468MB(Quest/Quest_Light/Rift/Rift_Light 전체 — 위 "이번 처리"의 73MB보다 훨씬 큰, 언제 누가 돌렸는지 불명확한 전체 패키징본)로 부풀어 `git status`에 잡혔고, 이 미커밋 원칙을 모르고 Git LFS로 커밋했다가 뒤늦게 이 섹션을 보고 revert했다. **revert는 워킹 디렉토리의 실 파일 내용까지 커밋 시점 값으로 되돌린다** — LFS 커밋 직후였기에 로컬 `.git/lfs/objects/`에 캐시가 남아 `git show <commit>:<path> | git lfs smudge`로 복구 가능했지만, 캐시가 gc되거나 커밋 자체를 안 했다면 복구 불가능했을 것. **다음에 이 zip이 다시 모디파이드로 잡히면**: 먼저 이 섹션부터 확인하고, `git update-index -v --refresh`로 assume-unchanged 상태를 점검한 뒤 재적용할 것 — 절대 먼저 커밋하지 말 것.
 
 ## 숨은 규칙 / 암묵지
 - Meta Avatars SDK를 Asset Store에서 검색해도 안 뜨는 게 정상이다 (EOF라 검색 노출이 약함). `developers.meta.com/horizon/downloads/package/meta-avatars-sdk/`에서 직접 받아야 한다.

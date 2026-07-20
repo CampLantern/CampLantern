@@ -30,6 +30,14 @@
 ## 새 몬스터 추가 절차
 1. `CombatDataFactory`류로 `MonsterData`(+스킬) 에셋 → 2. `CombatMonsterPrefabFactory` 패턴으로 로컬 프리팹(비주얼+피격/약점 볼륨 — 머리 위치는 휴리스틱이라 육안 조정) → 3. 애니 파라미터 매핑을 드라이버 인스펙터/팩토리에서 교체 → 4. 네트워크판은 `NetworkedHuntMonsterFactory` 패턴(+`huntDef` 연결, `RoomScenesFactory.SetHuntPrefabs` 배열 추가) → 5. 봇/샌드박스 회귀.
 
+## 이동 방식 — RVRF식 텔레포트 (GDD 확정, 2026-07-20)
+- **사냥터 이동은 텔레포트(위치 지정 + 썸스틱)로 통일** — 목적은 멀미 대응. Meta Interaction SDK의 Locomotor가 이미 Slide(스틱 연속 이동)/Teleport 두 방식을 지원하고 두 방식용 GameObject 세트도 프로젝트 리그(`OVRComprehensiveInteractionRig`)에 배선돼 있지만, `MovingSetting.ControllerMovement` 기본값이 `Slide`라 텔레포트가 켜진 적이 없었다(2026-07-17엔 화면 암전만 고치고 이건 발견 못 함 — 2026-07-20 GDD 재확인 중 드러남).
+  - `HuntZoneHarness.SetLocomotionStyle()`이 `Awake()`에서 `Teleport`로, `OnDestroy()`에서 `Slide`로 되돌린다 — 리그가 `DontDestroyOnLoad`라 되돌리지 않으면 사냥터를 나간 뒤에도 텔레포트가 다른 공간에 새어나간다.
+  - **P0Harness(단일 씬 통합 테스트)엔 적용 안 함** — 여러 활동이 한 씬에 섞여 있어 "사냥터만 텔레포트"를 재현할 방법이 없다. 필요해지면 재검토.
+- **컨트롤러 직접 이동(고릴라 태그식 손 당김 이동)은 채택하지 않는다** — 프로젝트에 애초에 구현돼 있지 않음, GDD가 이 방향을 명시적으로 배제.
+- **회피 밸런싱은 별도로 두지 않는다** — 몬스터 공격 애니메이션의 예고(telegraph) 시간을 넉넉히 잡는 쪽으로 난이도를 낮게 유지하는 게 GDD 방침. 별도의 회피 판정/무적 프레임 시스템을 추가하지 말 것 — 스킬 텔레그래프 타이밍(`SkillRunner`/`MonsterAnimationDriver`) 튜닝으로 충분해야 한다.
+- **실기(헤드셋) 검증 전** — 코드는 컴파일 확인만 했고, 텔레포트 아크가 실제로 뜨는지·썸스틱 트리거가 맞는지는 플레이 확인 필요.
+
 ## 팀 결정 대기 / 후속
 - 구 HuntTarget 3종 → 전투 몬스터 교체 여부 (병행 검증 후).
 - 사냥 시작(HuntActive) 전 몬스터 FSM 활성(타격만 게이트 — HuntTarget 의미론 계승) — 시작 전 공격 억제 여부.

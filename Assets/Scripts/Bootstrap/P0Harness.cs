@@ -9,6 +9,7 @@ using CampLantern.Hunting;
 using CampLantern.Networking;
 using CampLantern.Networking.Voice;
 using Fusion;
+using Meta.XR.MultiplayerBlocks.Fusion;
 using UnityEngine;
 
 namespace CampLantern.Bootstrap
@@ -62,6 +63,10 @@ namespace CampLantern.Bootstrap
         // 협동 게이트/기여/보상 테스트용. 음성은 붙이지 않는다 (마이크 이중 캡처 방지).
         private NetworkRunner m_dummyRunner;
         private bool m_dummyJoining;
+        // 더미 러너 시점에 복제되는 실플레이어 아바타 프록시(=내 아바타의 유령 사본) 은폐용 — HideDummyRunnerProxies()에서 사용
+        private readonly List<AvatarBehaviourFusion> m_dummyAvatarBuffer = new List<AvatarBehaviourFusion>();
+        private readonly List<HuntTarget> m_dummyHuntTargetBuffer = new List<HuntTarget>();
+        private GameObject m_dummyPlaceholder; // 더미 "사람" 표시용 로컬 프리미티브 — SpawnDummyPersonAvatar 참조
 
         /// <summary>접속 중인 더미 피어 러너. 없으면 null. (자동 테스트 메뉴에서 사용)</summary>
         public NetworkRunner DummyRunner => m_dummyRunner;
@@ -148,6 +153,7 @@ namespace CampLantern.Bootstrap
             if (m_dummyRunner != null && m_dummyRunner.IsRunning)
                 m_dummyRunner.Shutdown();
             m_dummyRunner = null;
+            if (m_dummyPlaceholder != null) Destroy(m_dummyPlaceholder);
 
             m_state?.Save(m_estateManager);
         }
@@ -166,6 +172,8 @@ namespace CampLantern.Bootstrap
                 var target = FindHuntTarget(m_launcher.Runner);
                 if (target != null) HookHuntTarget(target);
             }
+
+            HideDummyRunnerProxies();
         }
 
         /// <summary>해당 러너에 속한 사냥감 인스턴스를 찾는다 (러너 스코프 — 씬 전역 검색 금지).</summary>
@@ -175,6 +183,31 @@ namespace CampLantern.Bootstrap
             m_huntTargetsBuffer.Clear();
             runner.GetAllBehaviours(m_huntTargetsBuffer);
             return m_huntTargetsBuffer.Count > 0 ? m_huntTargetsBuffer[0] : null;
+        }
+
+        // 더미 러너 시점에 복제된 프록시(아바타·사냥감)는 통째로 비활성화한다 (HuntZoneHarness와 동일
+        // 패턴 — Renderer만 끄면 Meta Avatar SDK의 RefreshAllActives() 재활성화 경합에 짐). 사냥감도
+        // 마스터(실플레이어)만 스폰하므로 더미 러너 스코프에서 발견되는 HuntTarget은 전부 복제본이다 —
+        // 아바타 타입만 처리하던 초판은 이걸 놓쳐 더미 추가 시 사냥감이 겹쳐 보이는 원인이 됐다(2026-07-20).
+        private void HideDummyRunnerProxies()
+        {
+            if (m_dummyRunner == null) return;
+
+            m_dummyAvatarBuffer.Clear();
+            m_dummyRunner.GetAllBehaviours(m_dummyAvatarBuffer);
+            foreach (AvatarBehaviourFusion avatar in m_dummyAvatarBuffer)
+            {
+                if (avatar == null || !avatar.gameObject.activeSelf) continue;
+                avatar.gameObject.SetActive(false);
+            }
+
+            m_dummyHuntTargetBuffer.Clear();
+            m_dummyRunner.GetAllBehaviours(m_dummyHuntTargetBuffer);
+            foreach (HuntTarget target in m_dummyHuntTargetBuffer)
+            {
+                if (target == null || !target.gameObject.activeSelf) continue;
+                target.gameObject.SetActive(false);
+            }
         }
 
         // ── 이벤트 배선 ──────────────────────────────────────────────
@@ -267,6 +300,7 @@ namespace CampLantern.Bootstrap
             m_dummyRunner = null;
             if (runner != null)
                 _ = runner.Shutdown(); // destroyGameObject 기본 true — DummyPeer GO째 제거
+            if (m_dummyPlaceholder != null) Destroy(m_dummyPlaceholder);
         }
 
         private async Task StartDummyAsync()
@@ -303,6 +337,7 @@ namespace CampLantern.Bootstrap
 
                 m_dummyRunner = runner;
                 m_lastLog = $"더미 접속 완료 (P{runner.LocalPlayer.PlayerId})";
+                SpawnDummyPersonAvatar(runner);
             }
             catch (System.OperationCanceledException) { /* 파괴로 인한 취소 — 정상 */ }
             catch (System.Exception e)
@@ -314,6 +349,43 @@ namespace CampLantern.Bootstrap
             {
                 m_dummyJoining = false;
             }
+        }
+
+        // 더미 러너용 "사람" 표시를 고정 위치에 세운다 — Meta Avatar SDK(FusionAvatarSdk28Plus)로 4번 시도
+        // 했으나 전부 실패해 로컬 프리미티브 플레이스홀더로 대체(2026-07-20 결정, tech-stack-decisions.md
+        // §더미 러너 참조). Fusion NetworkObject가 아니라 순수 로컬 GameObject — 네트워크 상태 검증(이 더미
+        // 기능의 원래 목적)에는 영향 없고, 시야에 "누가 있다"만 표시하면 되므로 네트워크 동기화 불필요.
+        //
+        // 캡슐 하나짜리 몸통(1차 시도)은 사람이 아니라 파란 막대기로 보였다(2026-07-20 사용자 재확인) —
+        // 머리·몸통·팔다리를 색으로 구분해 사람 실루엣이 드러나게 다시 만든다.
+        private void SpawnDummyPersonAvatar(NetworkRunner dummyRunner)
+        {
+            Vector3 dummyPos = transform.position + new Vector3(1.5f, 0f, 1.5f);
+
+            m_dummyPlaceholder = new GameObject("DummyPlaceholder(사람 표시)");
+            m_dummyPlaceholder.transform.position = dummyPos;
+
+            var skin = new Color(0.94f, 0.78f, 0.63f);
+            var shirt = new Color(0.3f, 0.6f, 1f);
+            var pants = new Color(0.2f, 0.25f, 0.4f);
+
+            AddDummyPart(PrimitiveType.Sphere, "Head", new Vector3(0f, 1.65f, 0f), new Vector3(0.22f, 0.24f, 0.22f), skin);
+            AddDummyPart(PrimitiveType.Capsule, "Torso", new Vector3(0f, 1.22f, 0f), new Vector3(0.42f, 0.32f, 0.24f), shirt);
+            AddDummyPart(PrimitiveType.Capsule, "ArmL", new Vector3(-0.28f, 1.15f, 0f), new Vector3(0.12f, 0.3f, 0.12f), shirt);
+            AddDummyPart(PrimitiveType.Capsule, "ArmR", new Vector3(0.28f, 1.15f, 0f), new Vector3(0.12f, 0.3f, 0.12f), shirt);
+            AddDummyPart(PrimitiveType.Capsule, "LegL", new Vector3(-0.12f, 0.45f, 0f), new Vector3(0.15f, 0.45f, 0.15f), pants);
+            AddDummyPart(PrimitiveType.Capsule, "LegR", new Vector3(0.12f, 0.45f, 0f), new Vector3(0.15f, 0.45f, 0.15f), pants);
+        }
+
+        private void AddDummyPart(PrimitiveType type, string partName, Vector3 localPos, Vector3 localScale, Color color)
+        {
+            var part = GameObject.CreatePrimitive(type);
+            part.name = partName;
+            part.transform.SetParent(m_dummyPlaceholder.transform, false);
+            part.transform.localPosition = localPos;
+            part.transform.localScale = localScale;
+            Destroy(part.GetComponent<Collider>());
+            part.GetComponent<Renderer>().sharedMaterial.color = color;
         }
 
         // ── 디버그 UI (개발용 IMGUI) ─────────────────────────────────

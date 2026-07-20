@@ -11,6 +11,7 @@ using CampLantern.Networking.Voice;
 using CampLantern.UI;
 using Fusion;
 using Meta.XR.MultiplayerBlocks.Fusion;
+using Oculus.Interaction.Locomotion;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -58,6 +59,9 @@ namespace CampLantern.Bootstrap
         // 같은 프로세스·같은 리그(카메라)라 그 프록시가 실플레이어와 같은 좌표로 따라붙어 보이는 것 —
         // 더미 자체가 아니라 "내 아바타의 유령 사본"이 렌더되는 것이므로 렌더러만 꺼서 감춘다.
         private readonly List<AvatarBehaviourFusion> m_dummyAvatarBuffer = new List<AvatarBehaviourFusion>();
+        private readonly List<HuntTarget> m_dummyHuntTargetBuffer = new List<HuntTarget>();
+        private readonly List<NetworkedHuntMonster> m_dummyMonsterBuffer = new List<NetworkedHuntMonster>();
+        private GameObject m_dummyPlaceholder; // 더미 "사람" 표시용 로컬 프리미티브 — SpawnDummyPersonAvatar 참조
 
         private bool m_joining;
         private string m_lastLog = "-";
@@ -91,6 +95,16 @@ namespace CampLantern.Bootstrap
             m_launcher.SessionStarted += OnSessionStarted;
         }
 
+        // PersistentPlayer(영속 VR 리그)는 [RuntimeInitializeOnLoadMethod(AfterSceneLoad)]로 스폰된다 —
+        // Unity 실행 순서상 AfterSceneLoad는 첫 씬 오브젝트들의 Awake/OnEnable "뒤", Start "앞"에 낀다.
+        // 그래서 여기서 리그 하위 컴포넌트(MovingSetting)를 찾는 코드를 Awake()에 두면 리그가 아직
+        // 없어 매번 실패한다(2026-07-20 실측 — "MovingSetting을 찾을 수 없음" 경고가 매 Awake마다 찍힘).
+        // Start()로 옮기면 그 시점엔 리그가 이미 존재해 정상 동작한다.
+        private void Start()
+        {
+            SetLocomotionStyle(MovingSetting.MovementStyle.Teleport); // GDD: 사냥터는 RVRF식 텔레포트로 통일(멀미 대응), 고릴라 태그식 직접 이동 미채택
+        }
+
         private void OnDestroy()
         {
             m_launcher.SessionStarted -= OnSessionStarted;
@@ -102,6 +116,24 @@ namespace CampLantern.Bootstrap
             if (m_dummyRunner != null && m_dummyRunner.IsRunning)
                 m_dummyRunner.Shutdown();
             m_dummyRunner = null;
+            if (m_dummyPlaceholder != null) Destroy(m_dummyPlaceholder);
+
+            SetLocomotionStyle(MovingSetting.MovementStyle.Slide); // 리그는 DontDestroyOnLoad라 씬을 나갈 때 기본값(스무스)으로 되돌려야 다른 공간에 안 새어나간다
+        }
+
+        // 사냥터 전용 텔레포트 이동 강제(GDD 확정) — Meta Interaction SDK의 Locomotor가 Slide(스틱 연속 이동)/
+        // Teleport(위치 지정 + 썸스틱) 두 방식을 이미 지원하지만 기본값이 Slide라 텔레포트가 켜진 적이 없었다.
+        // 리그(PersistentPlayer)에 있는 단일 MovingSetting을 찾아 값만 바꾼다 — ControllerMovement.Value 대입 시
+        // ReactiveValue가 구독자(HandleMovingChanged)를 즉시 통지해 슬라이드/텔레포트 GameObject 세트를 스왑한다.
+        private static void SetLocomotionStyle(MovingSetting.MovementStyle style)
+        {
+            var setting = FindFirstObjectByType<MovingSetting>();
+            if (setting == null)
+            {
+                Debug.LogWarning("[HuntZoneHarness] MovingSetting을 찾을 수 없음 — 인터랙션 리그 미배선?");
+                return;
+            }
+            setting.ControllerMovement.Value = style;
         }
 
         private void OnApplicationQuit()
@@ -145,20 +177,24 @@ namespace CampLantern.Bootstrap
                         monsterDef != null ? monsterDef.RequiredParticipants : 1);
                 }
 
-            HideDummyAvatarProxies();
+            HideDummyRunnerProxies();
         }
 
-        // 더미 러너 시점에 복제된 아바타 프록시(=내 아바타의 유령 사본)는 통째로 비활성화한다.
-        // 더미는 스포너가 없어 자기 아바타를 스폰하지 않으므로(HuntZoneHarness는 AvatarController를
-        // 더미 러너에 배선하지 않음), 더미 러너 스코프에서 발견되는 AvatarBehaviourFusion은 전부
-        // 실플레이어 아바타의 복제본이다 — 상태 동기화(NetworkTransform 등)는 필요 없다(화면에만 안 보이면 됨).
+        // 더미 러너 시점에 복제된 프록시(=실플레이어 쪽에서 스폰된 NetworkObject의 유령 사본)는
+        // 전부 통째로 비활성화한다. 더미는 스포너가 없어 자기 아바타를 스폰하지 않고(AvatarController
+        // 미배선), 사냥감도 마스터(실플레이어)만 스폰하므로(OnSessionStarted 가드), 더미 러너 스코프에서
+        // 발견되는 AvatarBehaviourFusion·HuntTarget·NetworkedHuntMonster는 전부 실플레이어 쪽 원본의
+        // 복제본이다 — 상태 동기화(NetworkTransform 등)는 필요 없다(화면에만 안 보이면 됨).
         //
         // **Renderer만 껐던 1차 시도는 매 프레임 다시 켜지는 경합에 졌다** — Meta Avatar SDK가 LOD/스트리밍
         // 완료 시 RefreshAllActives()로 렌더러 활성 상태를 자체적으로 재구성하는데, 이게 우리 Update()보다
         // 늦게(LateUpdate 등) 실행되면 그 프레임에 다시 켜져 버리고, 이후에도 반복돼 "꺼지지 않는 것처럼"
         // 보인다(실측 — 사용자 재확인으로 드러남). GameObject 자체를 꺼버리면 그 아래 어떤 컴포넌트의
         // Update/LateUpdate도 통째로 안 돌아서 이 경합 자체가 사라진다 — 더 확실한 해결.
-        private void HideDummyAvatarProxies()
+        //
+        // **아바타 타입만 처리하던 초판은 사냥감(HuntTarget/NetworkedHuntMonster)을 놓쳤다** — 더미
+        // 추가 시 사슴·곰이 겹쳐진 형태로 소환되는 것처럼 보인 원인(2026-07-20, 사용자 재현으로 확인).
+        private void HideDummyRunnerProxies()
         {
             if (m_dummyRunner == null) return;
 
@@ -168,6 +204,22 @@ namespace CampLantern.Bootstrap
             {
                 if (avatar == null || !avatar.gameObject.activeSelf) continue;
                 avatar.gameObject.SetActive(false);
+            }
+
+            m_dummyHuntTargetBuffer.Clear();
+            m_dummyRunner.GetAllBehaviours(m_dummyHuntTargetBuffer);
+            foreach (HuntTarget target in m_dummyHuntTargetBuffer)
+            {
+                if (target == null || !target.gameObject.activeSelf) continue;
+                target.gameObject.SetActive(false);
+            }
+
+            m_dummyMonsterBuffer.Clear();
+            m_dummyRunner.GetAllBehaviours(m_dummyMonsterBuffer);
+            foreach (NetworkedHuntMonster monster in m_dummyMonsterBuffer)
+            {
+                if (monster == null || !monster.gameObject.activeSelf) continue;
+                monster.gameObject.SetActive(false);
             }
         }
 
@@ -289,6 +341,7 @@ namespace CampLantern.Bootstrap
             var runner = m_dummyRunner;
             m_dummyRunner = null;
             if (runner != null) _ = runner.Shutdown();
+            if (m_dummyPlaceholder != null) Destroy(m_dummyPlaceholder);
         }
 
         private async Task StartDummyAsync()
@@ -320,6 +373,7 @@ namespace CampLantern.Bootstrap
 
                 m_dummyRunner = runner;
                 m_lastLog = $"더미 접속 완료 (P{runner.LocalPlayer.PlayerId})";
+                SpawnDummyPersonAvatar(runner);
             }
             catch (OperationCanceledException) { /* 파괴로 인한 취소 — 정상 */ }
             catch (Exception e)
@@ -331,6 +385,43 @@ namespace CampLantern.Bootstrap
             {
                 m_dummyJoining = false;
             }
+        }
+
+        // 더미 러너용 "사람" 표시를 고정 위치에 세운다 — Meta Avatar SDK(FusionAvatarSdk28Plus)로 4번 시도
+        // 했으나 전부 실패해 로컬 프리미티브 플레이스홀더로 대체(2026-07-20 결정, tech-stack-decisions.md
+        // §더미 러너 참조). Fusion NetworkObject가 아니라 순수 로컬 GameObject — 네트워크 상태 검증(이 더미
+        // 기능의 원래 목적)에는 영향 없고, 시야에 "누가 있다"만 표시하면 되므로 네트워크 동기화 불필요.
+        //
+        // 캡슐 하나짜리 몸통(1차 시도)은 사람이 아니라 파란 막대기로 보였다(2026-07-20 사용자 재확인) —
+        // 머리·몸통·팔다리를 색으로 구분해 사람 실루엣이 드러나게 다시 만든다.
+        private void SpawnDummyPersonAvatar(NetworkRunner dummyRunner)
+        {
+            Vector3 dummyPos = transform.position + new Vector3(1.5f, 0f, 1.5f); // 실플레이어 스폰 근처 고정 자리
+
+            m_dummyPlaceholder = new GameObject("DummyPlaceholder(사람 표시)");
+            m_dummyPlaceholder.transform.position = dummyPos;
+
+            var skin = new Color(0.94f, 0.78f, 0.63f);
+            var shirt = new Color(0.3f, 0.6f, 1f);  // 실플레이어 아바타와 헷갈리지 않게 파란 계열
+            var pants = new Color(0.2f, 0.25f, 0.4f);
+
+            AddPart(PrimitiveType.Sphere, "Head", new Vector3(0f, 1.65f, 0f), new Vector3(0.22f, 0.24f, 0.22f), skin);
+            AddPart(PrimitiveType.Capsule, "Torso", new Vector3(0f, 1.22f, 0f), new Vector3(0.42f, 0.32f, 0.24f), shirt);
+            AddPart(PrimitiveType.Capsule, "ArmL", new Vector3(-0.28f, 1.15f, 0f), new Vector3(0.12f, 0.3f, 0.12f), shirt);
+            AddPart(PrimitiveType.Capsule, "ArmR", new Vector3(0.28f, 1.15f, 0f), new Vector3(0.12f, 0.3f, 0.12f), shirt);
+            AddPart(PrimitiveType.Capsule, "LegL", new Vector3(-0.12f, 0.45f, 0f), new Vector3(0.15f, 0.45f, 0.15f), pants);
+            AddPart(PrimitiveType.Capsule, "LegR", new Vector3(0.12f, 0.45f, 0f), new Vector3(0.15f, 0.45f, 0.15f), pants);
+        }
+
+        private void AddPart(PrimitiveType type, string partName, Vector3 localPos, Vector3 localScale, Color color)
+        {
+            var part = GameObject.CreatePrimitive(type);
+            part.name = partName;
+            part.transform.SetParent(m_dummyPlaceholder.transform, false);
+            part.transform.localPosition = localPos;
+            part.transform.localScale = localScale;
+            Destroy(part.GetComponent<Collider>()); // 순수 표시용 — 상호작용 대상 아님
+            part.GetComponent<Renderer>().sharedMaterial.color = color;
         }
 
         private void OnGUI()

@@ -114,20 +114,26 @@ namespace CampLantern.EditorTools
 
         /// <summary>
         /// 인터랙션 리그(Add Interaction To VR Rig)가 함께 들여온 Meta Interaction SDK의
-        /// "이동 편의(comfort) 비네트" — Locomotor.prefab 안에 TunnelingEffect(카메라 앞 쿼드+셰이더 렌더)
-        /// 인스턴스가 **두 개** 있다:
-        ///   1) GameObject "TunnelingEffect" — LocomotionTunneling(제어, ComfortTurning/ComfortMoving)이 사용.
-        ///   2) GameObject "WallPenetrationTunneling" — WallPenetrationTunneling이 사용. 트래킹된(실제) 머리
-        ///      위치와 캐릭터 컨트롤러가 강제한 논리적 머리 위치 사이를 레이캐스트해서, 그 사이에 뭐라도
-        ///      걸리면(벽 관통 감지) 자기 쪽 TunnelingEffect를 강제로 켠다(enabled=true, UserFOV를 관통
+        /// "이동 편의(comfort) 비네트" — Locomotor.prefab 안에 소스 프리팹 `TunnelingEffect.prefab`
+        /// (카메라 앞 쿼드+셰이더 렌더)의 인스턴스가 **두 개** 있는데, 인스턴스화되며 각각 다른
+        /// 이름으로 오버라이드돼 있다 (소스 파일명 "TunnelingEffect"는 씬 어디에도 GameObject
+        /// 이름으로 남아있지 않음 — Locomotor.prefab 실제 확인, 2026-07-20):
+        ///   1) GameObject "SmoothMovementTunneling" — LocomotionTunneling(제어, ComfortTurning/
+        ///      ComfortMoving)이 사용. 이동/회전할 때마다 컴포트 비네트를 켬 — "이동 시 시야가
+        ///      좁아지며 화면이 검게" 증상의 직접 원인.
+        ///   2) GameObject "WallPenetrationTunneling" — WallPenetrationTunneling이 사용. 트래킹된(실제)
+        ///      머리 위치와 캐릭터 컨트롤러가 강제한 논리적 머리 위치 사이를 레이캐스트해서, 그 사이에
+        ///      뭐라도 걸리면(벽 관통 감지) 자기 쪽 비네트를 강제로 켠다(enabled=true, UserFOV를 관통
         ///      거리 기반으로 좁힘). **헤드셋 없이 Simulator로 테스트하면 실제 걷는 게 아니라 캐릭터만
         ///      조이스틱으로 이동하므로, 트래킹 위치(거의 고정)와 논리 위치(계속 이동) 사이 간격이 점점
         ///      벌어져 그 사이 바닥/벽에 항상 레이가 걸림** — 그래서 이동만 하면 방향 무관하게 화면이
         ///      가려진 것.
         ///
-        /// 1차 시도(GameObject "TunnelingEffect"만 비활성화)는 이 두 번째 인스턴스를 놓쳐서 절반만 고쳤다.
-        /// LocomotionTunneling은 되돌리기(원래 상태 유지 — 리셋 로직 보유). 두 TunnelingEffect GameObject
-        /// 전부 비활성화 — 어떤 스크립트가 enabled를 토글하든 GameObject 자체가 꺼져 있으면 안 그려진다.
+        /// 1차 시도는 GameObject 이름을 소스 프리팹 파일명 그대로("TunnelingEffect")로 착각해 찾아서
+        /// **둘 다 안 걸리고 조용히 no-op**했다(changed==0이라 "이미 정리됨" 로그만 찍고 실제로는
+        /// 아무것도 안 끔 — 2026-07-20 재확인, 실제 GameObject 이름 확인 후 수정).
+        /// LocomotionTunneling은 되돌리기(원래 상태 유지 — 리셋 로직 보유). 두 GameObject 전부
+        /// 비활성화 — 어떤 스크립트가 enabled를 토글하든 GameObject 자체가 꺼져 있으면 안 그려진다.
         /// idempotent.
         /// </summary>
         [MenuItem("Tools/Make Assets/Disable Locomotion Comfort Vignette (VR Rig)")]
@@ -156,7 +162,7 @@ namespace CampLantern.EditorTools
                 // 실제 고정 — 렌더러가 붙은 두 GameObject 전부 통째로 비활성화
                 foreach (var tr in root.GetComponentsInChildren<Transform>(true))
                 {
-                    if ((tr.name != "TunnelingEffect" && tr.name != "WallPenetrationTunneling") || !tr.gameObject.activeSelf) continue;
+                    if ((tr.name != "SmoothMovementTunneling" && tr.name != "WallPenetrationTunneling") || !tr.gameObject.activeSelf) continue;
                     tr.gameObject.SetActive(false);
                     changed++;
                 }
@@ -164,7 +170,7 @@ namespace CampLantern.EditorTools
                 if (changed > 0)
                 {
                     PrefabUtility.SaveAsPrefabAsset(root, k_path);
-                    Debug.Log($"[MakeAssets] 이동 편의 비네트 정리 완료 — TunnelingEffect·WallPenetrationTunneling " +
+                    Debug.Log($"[MakeAssets] 이동 편의 비네트 정리 완료 — SmoothMovementTunneling·WallPenetrationTunneling " +
                               "GameObject 비활성화(+ LocomotionTunneling 원복) — 화면 암전 해소");
                 }
                 else
@@ -460,6 +466,7 @@ namespace CampLantern.EditorTools
                 Debug.LogWarning($"[MakeAssets] {label} 컨트롤러 프리팹에 OVRControllerHelper가 없어 좌/우 설정을 건너뜀");
             }
         }
+
     }
 }
 #endif
