@@ -94,7 +94,19 @@ Meta Avatar SDK로 4번 연속 다른 이유로 실패한 뒤 내린 결정이�
 - **헤드셋 없이 Meta XR Simulator로 테스트하면** 실제로 걷는 게 아니라 캐릭터만 조이스틱으로 이동하므로, 트래킹 위치(거의 고정)와 논리 위치(계속 이동) 사이 간격이 점점 벌어져 그 사이 바닥/벽에 항상 레이가 걸린다 — 그래서 **이동만 하면 방향과 무관하게 화면이 가려진다.**
 - **1차 시도(2026-07-17, GameObject "TunnelingEffect"만 비활성화)는 이름을 소스 프리팹 파일명으로 착각해 아무 GameObject도 못 찾고 조용히 no-op했다** — `changed == 0`이라 "이미 정리됨" 로그만 남기고 실제로는 아무것도 안 꺼진 채 "해결"로 잘못 기록됨. 사용자가 이동 시 시야 좁아짐/암전이 여전하다고 재확인해 드러남.
 - **2026-07-20 실제 수정**: `VRPlayerRigFactory.DisableLocomotionComfortVignette()`의 이름 매칭을 `SmoothMovementTunneling`/`WallPenetrationTunneling`으로 교정. ClaudeBridge(`Reflection.Invoke` → `EditorApplication.ExecuteMenuItem`)로 메뉴를 재실행해 `VRPlayerRig.prefab`에 새 `m_IsActive: 0` 오버라이드가 실제로 추가됨을 diff로 확인(1차 시도 때는 diff가 아예 없었다 — "diff가 비어있다"는 게 이 종류의 이름 불일치 버그를 잡는 가장 확실한 신호). `LocomotionTunneling`은 원복(리셋 로직 보유) 유지, idempotent.
-- **실기(헤드셋) 재검증 전** — 구조적으로는 올바른 오브젝트가 꺼졌음을 확인했지만, 실제로 암전이 사라졌는지는 아직 플레이 확인 필요.
+- **실기 확인 완료(2026-07-20)** — 사용자가 이동 시 화면 암전이 사라졌음을 확인.
+
+### 텔레포트 이동 — 착지면·리티클 배선 (2026-07-20, GDD 확정 이동 방식 실현)
+`combat-system.md`의 "이동 방식 — RVRF식 텔레포트" 결정(§GDD 확정)을 실제로 동작시키는 과정에서 Meta Interaction SDK 쪽 배선이 3단계로 빠져 있었다 — 하나씩 사용자 재현으로 드러남.
+
+1. **"텔레포트 아크는 뜨는데 착지 가능 영역이 없다"** — `TeleportInteractable`(+이를 감싸는 `Oculus.Interaction.Surfaces.ColliderSurface`)이 바닥(`Ground`, `RoomScenesFactory.CreateGround`가 만드는 Plane+MeshCollider)에 전혀 배선돼 있지 않았다. 이 프로젝트에서 텔레포트를 켠 적이 없어서 애초에 없었던 배선. `MapBuildUtil.EnsureTeleportSurface(floorName)`이 `Ground`에 `ColliderSurface`+`TeleportInteractable`을 부착하고, `RoomMapsFactory.BuildHuntZoneIntoOpenScene()`이 맵 재구성 시 자동 호출(향후 재빌드에도 유지). 즉시 적용용 메뉴: `Tools > Make Assets > Enable Teleport Surface (Hunt Zone)`.
+2. **"착지 지점에 원형 표시가 안 뜬다"(RVRF 비교)** — 두 가지 원인이 겹쳐 있었다.
+   - **(a) 셰이더 비호환**: SDK 기본 리티클 머티리얼(`TeleportReticleMaterial.mat`)이 커스텀 빌트인 RP 셰이더(`Unlit/Hotspot`)라 URP 프로젝트에서 안 보인다 — RVRF 낚싯대 머티리얼(`RvrfTackleFactory`)과 같은 부류의 문제. 커스텀 셰이더라 단순 URP/Lit 치환은 안 되므로, SDK 제공 원형 텍스처(`Reticle-Circle.png`)로 `Universal Render Pipeline/Particles/Unlit` 머티리얼(`Assets/Prefabs/Materials/Mat_TeleportReticle.mat`, 초록 반투명)을 새로 만들어 대체했다. 원형 성장/하이라이트 애니메이션(`_Progress`/`_Highlight`)은 포기.
+   - **(b) 리티클 데이터 컴포넌트 누락**: `TeleportInteractable`이 붙은 오브젝트에 `Oculus.Interaction.DistanceReticles.ReticleDataTeleport`도 같이 있어야 한다 — SDK의 `InteractorReticle<T>.InteractableSet()`이 `interactable.TryGetComponent<ReticleDataTeleport>()`로 데이터를 가져오는데, 이게 없으면 `Draw()`/`Align()` 자체가 절대 호출되지 않는다. 리티클 GameObject·머티리얼·인터랙터 참조를 전부 맞게 배선해도 이 컴포넌트 하나가 빠지면 영원히 안 보인다 — (a)를 고친 뒤에도 여전히 안 보여서 소스(`InteractorReticle.cs`)를 다시 읽고 드러남. `EnsureTeleportSurface()`가 `ReticleDataTeleport`도 같이 부착하도록 갱신.
+   - 리티클 자체는 `VRPlayerRigFactory.AddTeleportReticle()`이 `Quad` 하나를 만들어 `TeleportReticleDrawer`를 붙이고 배선한다.
+3. **이 리그엔 `TeleportInteractor`가 5개 있다** — 좌/우 `TeleportControllerInteractor`(컨트롤러 모드, **기본 비활성** — OVR가 런타임에 컨트롤러 감지 시 켜는 것으로 추정), 좌/우 `TeleportMicrogestureInteractor`(핸드트래킹 모드, 기본 활성이나 이 프로젝트는 미사용), `BodyTeleportInteractor`(Locomotor 직속, **항상 활성**). 기존에 이미 정상 배선된 리티클이 좌측 `TeleportControllerInteractor`에 있었지만 그 GameObject가 비활성이라 안 보였던 것 — 실제로 레이를 뿌리는 건 `BodyTeleportInteractor`라 그쪽에 새 리티클을 달았다. **컨트롤러 모드가 런타임에 활성화되면(실기에서 컨트롤러 든 채 플레이) 좌측 기존 리티클과 중복 표시될 가능성** — 실기에서 이상하면 좌/우 `TeleportControllerInteractor`도 같이 확인할 것.
+- **알려진 문제(미수정, 2026-07-20 사용자가 "보기만 하라"고 명시)**: 텔레포트 아크가 나무·바위 등 환경 소품을 뚫고 지나가 뒤쪽 바닥을 착지 지점으로 표시한다. `Ground`만 유일한 `TeleportInteractable`(=충돌 검사 대상)이라, 소품에 별도 콜라이더가 없으면 아크가 그냥 통과하는 것으로 추정 — `RoomMapsFactory`/`MapBuildUtil`의 나무·바위·수풀 배치(`PlaceEnv`/`BuildTree`/`PlaceRock` 등)가 콜라이더를 안 넣고 있는지 확인이 필요하다. 고치려면 소품에도 `ColliderSurface`를 걸거나, 아크의 장애물 레이어마스크 설정을 확인해야 함.
+- **실기 확인 완료(2026-07-20)** — 사용자가 착지면·초록 리티클 둘 다 정상 확인.
 
 ### Meta XR Simulator — Activate 메뉴로만 켠다 (manifest 편집 금지) (2026-07-08 확정)
 헤드셋 없이 에디터에서 VR을 테스트하려면 시뮬레이터가 필수다(XR 런타임을 제공). 없으면 Play 진입 시 OpenXR가 HMD를 못 찾아 `XR_ERROR_FORM_FACTOR_UNAVAILABLE`로 실패한다.

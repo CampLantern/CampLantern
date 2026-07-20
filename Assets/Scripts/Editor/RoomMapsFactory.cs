@@ -37,6 +37,11 @@ namespace CampLantern.EditorTools
         [MenuItem("Tools/Make Assets/Build Hunt Zone Map (VR)")]
         public static void BuildHunt() => BuildScene(k_huntScenePath, BuildHuntZoneIntoOpenScene, "사냥터(존A 숲)");
 
+        // 전체 맵 재구성 없이 텔레포트 착지면만 즉시 배선 — 이미 만들어진 사냥터 씬에 빠르게 적용할 때 사용.
+        [MenuItem("Tools/Make Assets/Enable Teleport Surface (Hunt Zone)")]
+        public static void EnableHuntZoneTeleportSurface() =>
+            BuildScene(k_huntScenePath, () => EnsureTeleportSurface(), "사냥터 텔레포트 착지면");
+
         [MenuItem("Tools/Make Assets/Build Estate Map (VR)")]
         public static void BuildEstate() => BuildScene(k_estateScenePath, BuildEstateIntoOpenScene, "영지");
 
@@ -199,6 +204,7 @@ namespace CampLantern.EditorTools
             Transform gates = new GameObject("PortalGates").transform;
             BuildLobbyReturnGate(gates, new Vector3(0f, 0f, -12f), new Vector3(0f, 0f, -8f));
             EnsureEventSystem();
+            EnsureTeleportSurface(); // GDD 확정 텔레포트 이동 — Ground를 유효 착지면으로 등록(tech-stack-decisions.md 참조)
 
             // 늦은 오후 숲 — 낮은 해, 짙은 초록 안개
             ConfigureSun(new Vector3(33f, -25f, 0f), "#ffe3b8", 0.9f);

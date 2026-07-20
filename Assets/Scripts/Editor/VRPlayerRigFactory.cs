@@ -467,6 +467,108 @@ namespace CampLantern.EditorTools
             }
         }
 
+        // ── 텔레포트 착지 리티클 ────────────────────────────────────
+        // 아크는 뜨는데 착지점 표시가 없다는 사용자 피드백(RVRF 비교). Meta Interaction SDK가 제공하는
+        // TeleportReticleMaterial은 커스텀 빌트인 RP 셰이더(Unlit/Hotspot)라 URP 프로젝트에서 안 보인다
+        // (2026-07-20 실측 — 리티클을 배선했는데도 육안으로 변화 없음. RVRF 낚싯대 머티리얼과 같은
+        // 부류의 문제, RvrfTackleFactory 참조). 커스텀 셰이더라 단순 URP/Lit 치환은 원형 표시 로직을
+        // 잃으므로, SDK 제공 원형 텍스처(Reticle-Circle.png)로 URP 파티클 언릿 머티리얼을 새로 만든다 —
+        // 링 성장/하이라이트 애니메이션은 포기하고 "여기 착지 가능" 표시만 담당.
+        private const string k_teleportReticleTexGuid = "4aa4a1b9a03d9b54d80515831235fbe9"; // Reticle-Circle.png
+        private const string k_urpParticleUnlitShader  = "Universal Render Pipeline/Particles/Unlit";
+        private const string k_reticleMatPath          = "Assets/Prefabs/Materials/Mat_TeleportReticle.mat";
+
+        [MenuItem("Tools/Make Assets/Add Teleport Reticle (VR Rig)")]
+        public static void AddTeleportReticle()
+        {
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(k_path) == null)
+            {
+                Debug.LogError($"[MakeAssets] VRPlayerRig 없음: {k_path}");
+                return;
+            }
+
+            Material mat = AssetDatabase.LoadAssetAtPath<Material>(k_reticleMatPath);
+            if (mat == null)
+            {
+                Shader shader = Shader.Find(k_urpParticleUnlitShader);
+                if (shader == null)
+                {
+                    Debug.LogError($"[MakeAssets] 셰이더 없음: {k_urpParticleUnlitShader}");
+                    return;
+                }
+                string texPath = AssetDatabase.GUIDToAssetPath(k_teleportReticleTexGuid);
+                Texture2D tex = AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
+
+                mat = new Material(shader) { name = "Mat_TeleportReticle" };
+                mat.SetFloat("_Surface", 1f); // Transparent
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetFloat("_ZWrite", 0f);
+                mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                if (tex != null) mat.SetTexture("_BaseMap", tex);
+                mat.SetColor("_BaseColor", new Color(0.3f, 1f, 0.5f, 0.85f)); // 착지 가능 = 초록
+
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(k_reticleMatPath)!);
+                AssetDatabase.CreateAsset(mat, k_reticleMatPath);
+            }
+
+            GameObject root = PrefabUtility.LoadPrefabContents(k_path);
+            try
+            {
+                // 이 리그엔 TeleportInteractor가 5개 있다(2026-07-20 실측) — 좌/우 TeleportControllerInteractor
+                // (컨트롤러 모드, 기본 비활성 — OVR가 런타임에 컨트롤러 감지 시 켬), 좌/우
+                // TeleportMicrogestureInteractor(핸드트래킹 모드, 기본 활성이나 이 프로젝트는 미사용),
+                // BodyTeleportInteractor(Locomotor 직속, 항상 활성) — 사용자가 실제로 보는 레이는 이쪽.
+                var allInteractors = root.GetComponentsInChildren<Oculus.Interaction.Locomotion.TeleportInteractor>(true);
+                Oculus.Interaction.Locomotion.TeleportInteractor bodyInteractor = null;
+                foreach (var ti in allInteractors)
+                    if (ti.gameObject.name == "BodyTeleportInteractor") { bodyInteractor = ti; break; }
+
+                if (bodyInteractor == null)
+                {
+                    Debug.LogError("[MakeAssets] BodyTeleportInteractor 없음 — 먼저 Add Interaction To VR Rig 실행");
+                    return;
+                }
+
+                Oculus.Interaction.DistanceReticles.TeleportReticleDrawer drawer = null;
+                foreach (var d in root.GetComponentsInChildren<Oculus.Interaction.DistanceReticles.TeleportReticleDrawer>(true))
+                {
+                    var ip = new SerializedObject(d).FindProperty("_interactor");
+                    if (ip.objectReferenceValue == (Object)bodyInteractor) { drawer = d; break; }
+                }
+
+                MeshRenderer renderer;
+                if (drawer == null)
+                {
+                    var reticle = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                    reticle.name = "TeleportReticle";
+                    Object.DestroyImmediate(reticle.GetComponent<Collider>()); // 순수 표시용
+                    reticle.transform.SetParent(root.transform, false);
+                    reticle.transform.localScale = Vector3.one * 0.35f;
+
+                    renderer = reticle.GetComponent<MeshRenderer>();
+                    renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+                    drawer = reticle.AddComponent<Oculus.Interaction.DistanceReticles.TeleportReticleDrawer>();
+                    var so = new SerializedObject(drawer);
+                    so.FindProperty("_interactor").objectReferenceValue = bodyInteractor;
+                    so.FindProperty("_targetRenderer").objectReferenceValue = renderer;
+                    so.ApplyModifiedPropertiesWithoutUndo();
+                }
+                else
+                {
+                    renderer = drawer.GetComponent<MeshRenderer>();
+                }
+
+                renderer.sharedMaterial = mat; // URP 머티리얼로 (재)적용 — 기존 SDK 빌트인 머티리얼 대체
+                PrefabUtility.SaveAsPrefabAsset(root, k_path);
+                Debug.Log("[MakeAssets] BodyTeleportInteractor용 텔레포트 착지 리티클 배선 완료 (URP 머티리얼)");
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+            AssetDatabase.Refresh();
+        }
     }
 }
 #endif

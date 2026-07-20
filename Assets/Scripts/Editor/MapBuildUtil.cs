@@ -274,6 +274,49 @@ namespace CampLantern.EditorTools
             if (ground != null) ground.GetComponent<Renderer>().sharedMaterial = Mat(hex);
         }
 
+        /// <summary>
+        /// 씬의 이름이 <paramref name="floorName"/>인 오브젝트를 텔레포트 목적지로 등록한다 —
+        /// Meta Interaction SDK의 <see cref="Oculus.Interaction.Locomotion.TeleportInteractable"/>은
+        /// <see cref="Oculus.Interaction.Surfaces.ColliderSurface"/>로 감싼 콜라이더가 있어야 아크가
+        /// 유효한 착지 지점을 찾는다 — 텔레포트 아크 자체는 뜨는데 "이동 가능한 영역이 없다"는 증상은
+        /// 이 배선이 빠졌을 때 정확히 나타난다(2026-07-20 사용자 재현). idempotent — 이미 있으면 참조만 보정.
+        ///
+        /// <see cref="Oculus.Interaction.DistanceReticles.ReticleDataTeleport"/>도 같은 오브젝트에 필요하다 —
+        /// SDK의 InteractorReticle.InteractableSet()이 interactable.TryGetComponent&lt;ReticleDataTeleport&gt;()로
+        /// 데이터를 가져오는데 이게 없으면 리티클의 Draw()/Align()이 아예 호출되지 않는다(2026-07-20 실측 —
+        /// 리티클 GameObject·머티리얼을 다 맞게 배선해도 이 컴포넌트 하나가 빠지면 영원히 안 보임).
+        /// </summary>
+        public static void EnsureTeleportSurface(string floorName = "Ground")
+        {
+            var floor = GameObject.Find(floorName);
+            if (floor == null)
+            {
+                Debug.LogWarning($"[MakeAssets] EnsureTeleportSurface: '{floorName}' 오브젝트 없음");
+                return;
+            }
+            var collider = floor.GetComponent<Collider>();
+            if (collider == null)
+            {
+                Debug.LogWarning($"[MakeAssets] EnsureTeleportSurface: '{floorName}'에 Collider 없음");
+                return;
+            }
+
+            var surface = floor.GetComponent<Oculus.Interaction.Surfaces.ColliderSurface>();
+            if (surface == null) surface = floor.AddComponent<Oculus.Interaction.Surfaces.ColliderSurface>();
+            var surfaceSo = new SerializedObject(surface);
+            surfaceSo.FindProperty("_collider").objectReferenceValue = collider;
+            surfaceSo.ApplyModifiedPropertiesWithoutUndo();
+
+            var teleportable = floor.GetComponent<Oculus.Interaction.Locomotion.TeleportInteractable>();
+            if (teleportable == null) teleportable = floor.AddComponent<Oculus.Interaction.Locomotion.TeleportInteractable>();
+            var teleportSo = new SerializedObject(teleportable);
+            teleportSo.FindProperty("_surface").objectReferenceValue = surface;
+            teleportSo.ApplyModifiedPropertiesWithoutUndo();
+
+            if (floor.GetComponent<Oculus.Interaction.DistanceReticles.ReticleDataTeleport>() == null)
+                floor.AddComponent<Oculus.Interaction.DistanceReticles.ReticleDataTeleport>();
+        }
+
         // ── 공통 소품 ────────────────────────────────────────────────
 
         public static void BuildTree(Transform parent, Vector3 pos, float scale)
