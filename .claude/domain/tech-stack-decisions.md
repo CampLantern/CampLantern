@@ -129,6 +129,7 @@ Meta Avatar SDK로 4번 연속 다른 이유로 실패한 뒤 내린 결정이�
 ## 숨은 규칙 / 암묵지
 - Meta Avatars SDK를 Asset Store에서 검색해도 안 뜨는 게 정상이다 (EOF라 검색 노출이 약함). `developers.meta.com/horizon/downloads/package/meta-avatars-sdk/`에서 직접 받아야 한다.
 - Fusion App ID와 Voice App ID는 **같은 `PhotonAppSettings` 에셋의 다른 필드**(App Id Fusion / App Id Voice)에 들어간다 — 별도 설정 파일이 아니다.
+- **저장소에 정체불명 파일이 보이면 먼저 이 목록부터 확인할 것(2026-07-20 정리 완료, 재조사 불필요)**: `Assets/Obi/`(Obi 물리 엔진 임포트 흔적 — 아이콘 하나뿐, 코드 미참조)와 `Assets/Resources/OVROverlayCanvasSettings.asset`(Meta XR SDK가 자동 생성하나 `OVROverlayCanvas` 미사용) 둘 다 미사용으로 확인 후 삭제됨. `scripts/claude-bridge-mcp/.../__pycache__/*.pyc`(파이썬 브릿지 툴링 빌드 산출물, Unity 무관)는 `.gitignore`에 `__pycache__/`·`*.pyc` 추가로 재발 방지 — 과거 실수로 커밋됐던 것도 제거함.
 
 ## 수정 시 주의
 - 백엔드가 확정되면 이 문서의 "영구 저장 백엔드" 행을 갱신하고, `domain/room-architecture.md`의 오프라인 방문 섹션에도 반영해야 한다.
