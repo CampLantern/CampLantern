@@ -34,9 +34,19 @@ namespace CampLantern.Fishing
         [Tooltip("그랩 최대 거리(m)")]
         [SerializeField] private float m_maxDistance = 8f;
 
-        // 손에 쥐었을 때의 로컬 포즈 — 프리팹 비주얼(28° 전방 기울기) 기준. TODO(TUNING): 실기 확인
-        private static readonly Vector3    k_heldLocalPos = new Vector3(0f, -0.08f, 0.02f);
-        private static readonly Quaternion k_heldLocalRot = Quaternion.Euler(25f, 0f, 0f);
+        // 손에 쥐었을 때의 로컬 포즈 — "손잡이를 실제로 쥔" 자세.
+        // 손잡이 지점(k_gripLocalPoint)이 손 앵커 안에 오도록 든 위치를 역산한다:
+        //   heldRot * grip + heldPos = palmOffset  →  heldPos = palmOffset - heldRot * grip
+        //
+        // 그립 지점은 실제 씬 낚싯대 = RvrfTackleFactory가 스왑한 RVRF 모델(Rod_Float_01) 기준:
+        //   FBX 피벗 = 손잡이 밑동, rod-local (0, 0.7, 0.1)에 배치 + 28° 전방 기울기(RvrfTackleFactory).
+        //   샤프트 단위방향 rotX(28)*(0,1,0)=(0,0.883,0.469) 로 밑동 위 0.15m = 손잡이(릴 밑) → (0, 0.83, 0.17).
+        //   (구 그레이박스 원통 기준 0.26이면 실제 손잡이보다 0.5m 아래를 잡아 릴이 머리 위로 떴었다.)
+        // TODO(TUNING): 실기 미세조정 — 더 위/아래로 잡으려면 y, 손바닥 깊이는 k_palmOffset.
+        private static readonly Vector3    k_gripLocalPoint = new Vector3(0f, 0.83f, 0.17f);
+        private static readonly Quaternion k_heldLocalRot   = Quaternion.Euler(10f, 0f, 0f);
+        private static readonly Vector3    k_palmOffset     = new Vector3(0f, -0.02f, 0.03f); // 손바닥 안쪽으로 살짝
+        private static readonly Vector3    k_heldLocalPos   = k_palmOffset - (k_heldLocalRot * k_gripLocalPoint);
         private const float k_grabProximityMin = 0.2f; // 손 바로 뒤/옆 오검출 방지
 
         private Transform m_hand;        // 오른손 컨트롤러 앵커 (PersistentPlayer 리그)
