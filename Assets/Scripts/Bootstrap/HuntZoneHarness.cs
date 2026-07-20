@@ -10,6 +10,7 @@ using CampLantern.Networking;
 using CampLantern.Networking.Voice;
 using CampLantern.UI;
 using Fusion;
+using Meta.XR.MultiplayerBlocks.Fusion;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -52,6 +53,11 @@ namespace CampLantern.Bootstrap
 
         private NetworkRunner m_dummyRunner;
         private bool m_dummyJoining;
+        // 더미 러너는 실제 몸체 없이 세션에만 합류하지만, Fusion Shared Mode 복제 규칙상
+        // 이미 스폰된(실플레이어) 아바타·전투 존재가 더미 러너 시점에도 프록시로 재생성된다.
+        // 같은 프로세스·같은 리그(카메라)라 그 프록시가 실플레이어와 같은 좌표로 따라붙어 보이는 것 —
+        // 더미 자체가 아니라 "내 아바타의 유령 사본"이 렌더되는 것이므로 렌더러만 꺼서 감춘다.
+        private readonly List<AvatarBehaviourFusion> m_dummyAvatarBuffer = new List<AvatarBehaviourFusion>();
 
         private bool m_joining;
         private string m_lastLog = "-";
@@ -138,6 +144,31 @@ namespace CampLantern.Bootstrap
                         () => m.HuntActive,
                         monsterDef != null ? monsterDef.RequiredParticipants : 1);
                 }
+
+            HideDummyAvatarProxies();
+        }
+
+        // 더미 러너 시점에 복제된 아바타 프록시(=내 아바타의 유령 사본)는 통째로 비활성화한다.
+        // 더미는 스포너가 없어 자기 아바타를 스폰하지 않으므로(HuntZoneHarness는 AvatarController를
+        // 더미 러너에 배선하지 않음), 더미 러너 스코프에서 발견되는 AvatarBehaviourFusion은 전부
+        // 실플레이어 아바타의 복제본이다 — 상태 동기화(NetworkTransform 등)는 필요 없다(화면에만 안 보이면 됨).
+        //
+        // **Renderer만 껐던 1차 시도는 매 프레임 다시 켜지는 경합에 졌다** — Meta Avatar SDK가 LOD/스트리밍
+        // 완료 시 RefreshAllActives()로 렌더러 활성 상태를 자체적으로 재구성하는데, 이게 우리 Update()보다
+        // 늦게(LateUpdate 등) 실행되면 그 프레임에 다시 켜져 버리고, 이후에도 반복돼 "꺼지지 않는 것처럼"
+        // 보인다(실측 — 사용자 재확인으로 드러남). GameObject 자체를 꺼버리면 그 아래 어떤 컴포넌트의
+        // Update/LateUpdate도 통째로 안 돌아서 이 경합 자체가 사라진다 — 더 확실한 해결.
+        private void HideDummyAvatarProxies()
+        {
+            if (m_dummyRunner == null) return;
+
+            m_dummyAvatarBuffer.Clear();
+            m_dummyRunner.GetAllBehaviours(m_dummyAvatarBuffer);
+            foreach (AvatarBehaviourFusion avatar in m_dummyAvatarBuffer)
+            {
+                if (avatar == null || !avatar.gameObject.activeSelf) continue;
+                avatar.gameObject.SetActive(false);
+            }
         }
 
         public HuntTarget FindHuntTarget(NetworkRunner runner)
