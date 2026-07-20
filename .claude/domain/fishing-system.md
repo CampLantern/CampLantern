@@ -29,4 +29,5 @@
 ## 수정 시 주의
 - 프로젝트는 **New Input System 전용**(`activeInputHandler=1`) — 입력 코드에 legacy `UnityEngine.Input` 금지(런타임 예외). `knowledge/unity-scripting-gotchas.md` §6.
 - §7 수식 수치를 바꿀 땐 코드가 아니라 `FishingTuning`/`FishingFormulas`에서 — 호출부 직접 수정 금지(구현 지침 [1]).
-- 팀원의 RealVRFishing 태클 에셋(`Assets/RealVRFishing/`, 2026-07-09 병합)이 낚싯대/미끼 비주얼 교체 후보 — 교체 시 "Visual" 자식 스왑 원칙(PlaceholderArtFactory 방식) 유지.
+- 실제 씬 낚싯대 비주얼은 **`RvrfTackleFactory`가 스왑한 RealVRFishing 모델**(`Rod_Float_01`, `Assets/RealVRFishing/`, 2026-07-09 병합)이다 — `StationFactory`의 그레이박스 원통이 아니다. "Visual" 자식 스왑 원칙(PlaceholderArtFactory 방식) 유지.
+- **낚싯대에 위치·부착하는 코드는 RVRF 모델 지오메트리 기준이어야 한다** (그랩 손잡이 오프셋·줄·찌·미끼·UI·도구 등): RVRF FBX는 **피벗=손잡이 밑동**이고 rod-local **(0, 0.7, 0.1)**에 28° 전방 기울기·스케일 0.45(~2.03m)로 배치된다(`RvrfTackleFactory.k_rodLocalPos/Euler/Scale`). 옛 원통(비주얼 y=0.7 중심 1.5m) 좌표를 쓰면 어긋난다. **실제 사고(2026-07-20):** `RodGrabber` 그립 지점이 원통 기준 y=0.26이라 그랩 시 실제 손잡이보다 0.5m 아래를 잡아 릴이 머리 위 0.6~0.8m로 떴다 → RVRF 손잡이 `(0, 0.83, 0.17)`로 수정(밑동 위 0.15m).
