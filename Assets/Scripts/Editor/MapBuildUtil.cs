@@ -296,27 +296,44 @@ namespace CampLantern.EditorTools
                 Debug.LogWarning($"[MakeAssets] EnsureTeleportSurface: '{floorName}' 오브젝트 없음");
                 return;
             }
-            var collider = floor.GetComponent<Collider>();
-            if (collider == null)
+            if (floor.GetComponent<Collider>() == null)
             {
                 Debug.LogWarning($"[MakeAssets] EnsureTeleportSurface: '{floorName}'에 Collider 없음");
                 return;
             }
 
-            var surface = floor.GetComponent<Oculus.Interaction.Surfaces.ColliderSurface>();
-            if (surface == null) surface = floor.AddComponent<Oculus.Interaction.Surfaces.ColliderSurface>();
+            WireTeleportInteractable(floor, allowTeleport: true);
+
+            if (floor.GetComponent<Oculus.Interaction.DistanceReticles.ReticleDataTeleport>() == null)
+                floor.AddComponent<Oculus.Interaction.DistanceReticles.ReticleDataTeleport>();
+        }
+
+        /// <summary>
+        /// <paramref name="go"/>를 <see cref="Oculus.Interaction.Locomotion.TeleportInteractable"/>로 등록한다
+        /// (콜라이더는 이미 있어야 함). <paramref name="allowTeleport"/>=false면 "장애물"로만 등록돼 착지는
+        /// 안 되지만 아크 후보 계산엔 참여한다 — 이게 핵심이다: TeleportCandidateComputer(SDK 소스 직접
+        /// 확인, 2026-07-20)는 물리 레이캐스트/레이어마스크가 아니라 **등록된 TeleportInteractable 목록만**
+        /// 훑어서 아크와 부딪히는지 검사한다. 나무·바위가 콜라이더는 있어도 이 컴포넌트가 없으면 애초에
+        /// 검사 대상이 아니라서 100% 통과한다 — "레이어 문제"로 보였던 관통 현상의 진짜 원인.
+        /// idempotent — 이미 있으면 참조/플래그만 보정.
+        /// </summary>
+        private static void WireTeleportInteractable(GameObject go, bool allowTeleport)
+        {
+            var collider = go.GetComponent<Collider>();
+            if (collider == null) return;
+
+            var surface = go.GetComponent<Oculus.Interaction.Surfaces.ColliderSurface>();
+            if (surface == null) surface = go.AddComponent<Oculus.Interaction.Surfaces.ColliderSurface>();
             var surfaceSo = new SerializedObject(surface);
             surfaceSo.FindProperty("_collider").objectReferenceValue = collider;
             surfaceSo.ApplyModifiedPropertiesWithoutUndo();
 
-            var teleportable = floor.GetComponent<Oculus.Interaction.Locomotion.TeleportInteractable>();
-            if (teleportable == null) teleportable = floor.AddComponent<Oculus.Interaction.Locomotion.TeleportInteractable>();
+            var teleportable = go.GetComponent<Oculus.Interaction.Locomotion.TeleportInteractable>();
+            if (teleportable == null) teleportable = go.AddComponent<Oculus.Interaction.Locomotion.TeleportInteractable>();
             var teleportSo = new SerializedObject(teleportable);
             teleportSo.FindProperty("_surface").objectReferenceValue = surface;
+            teleportSo.FindProperty("_allowTeleport").boolValue = allowTeleport;
             teleportSo.ApplyModifiedPropertiesWithoutUndo();
-
-            if (floor.GetComponent<Oculus.Interaction.DistanceReticles.ReticleDataTeleport>() == null)
-                floor.AddComponent<Oculus.Interaction.DistanceReticles.ReticleDataTeleport>();
         }
 
         // ── 공통 소품 ────────────────────────────────────────────────
@@ -354,32 +371,35 @@ namespace CampLantern.EditorTools
         private static void ReplaceWithPrimitiveCollider(GameObject go, bool isRock)
         {
             var existing = go.GetComponent<Collider>();
-            if (existing != null)
+            if (existing != null && existing is MeshCollider) Object.DestroyImmediate(existing);
+
+            if (go.GetComponent<Collider>() == null)
             {
-                if (existing is MeshCollider) Object.DestroyImmediate(existing);
-                else return; // 이미 프리미티브 콜라이더 보유 — 그대로 둔다
+                Bounds b = GetLocalBounds(go);
+                if (b.size == Vector3.zero) return;
+
+                if (isRock)
+                {
+                    var sphere = go.AddComponent<SphereCollider>();
+                    sphere.center = b.center;
+                    sphere.radius = Mathf.Max(b.extents.x, b.extents.z) * 0.85f;
+                }
+                else
+                {
+                    var capsule = go.AddComponent<CapsuleCollider>();
+                    capsule.direction = 1; // Y축
+                    // 캐노피 전체 폭이 아니라 줄기만 — 바운즈 XZ의 15%. 높이는 지면(로컬 Y=0, 이 프로젝트
+                    // 나무 에셋 공통 피벗 관례)에서 캐노피 아래쪽까지(전체 높이 75%)만 막아 위쪽은 그대로 둔다.
+                    float height = b.size.y * 0.75f;
+                    capsule.height = height;
+                    capsule.center = new Vector3(b.center.x, height * 0.5f, b.center.z);
+                    capsule.radius = Mathf.Min(b.size.x, b.size.z) * 0.15f;
+                }
             }
 
-            Bounds b = GetLocalBounds(go);
-            if (b.size == Vector3.zero) return;
-
-            if (isRock)
-            {
-                var sphere = go.AddComponent<SphereCollider>();
-                sphere.center = b.center;
-                sphere.radius = Mathf.Max(b.extents.x, b.extents.z) * 0.85f;
-            }
-            else
-            {
-                var capsule = go.AddComponent<CapsuleCollider>();
-                capsule.direction = 1; // Y축
-                // 캐노피 전체 폭이 아니라 줄기만 — 바운즈 XZ의 15%. 높이는 지면(로컬 Y=0, 이 프로젝트
-                // 나무 에셋 공통 피벗 관례)에서 캐노피 아래쪽까지(전체 높이 75%)만 막아 위쪽은 그대로 둔다.
-                float height = b.size.y * 0.75f;
-                capsule.height = height;
-                capsule.center = new Vector3(b.center.x, height * 0.5f, b.center.z);
-                capsule.radius = Mathf.Min(b.size.x, b.size.z) * 0.15f;
-            }
+            // 콜라이더(기존 프리미티브 유지분 포함)를 텔레포트 장애물로도 등록 — 그냥 콜라이더만
+            // 있으면 부족하다, WireTeleportInteractable 주석 참조.
+            WireTeleportInteractable(go, allowTeleport: false);
         }
 
         /// <summary>자식 렌더러들을 합친 바운즈를 <paramref name="go"/>의 로컬 좌표로 변환해 반환한다.</summary>
