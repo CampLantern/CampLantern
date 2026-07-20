@@ -110,3 +110,7 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Python bytecode cache (scripts/claude-bridge-mcp 등 파이썬 툴링)
+__pycache__/
+*.pyc
