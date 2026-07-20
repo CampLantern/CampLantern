@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CampLantern.Core;
+using CampLantern.Player;
 using UnityEngine;
 
 namespace CampLantern.Cooking
@@ -134,6 +135,16 @@ namespace CampLantern.Cooking
             Quaternion rot = Quaternion.Euler(0f, (slot * 53f) % 360f, 0f); // 슬롯별 고정 요(yaw) 변화 — 균일함 완화
             IngredientPickup pickup = Instantiate(m_pickupPrefab, pos, rot, transform);
             pickup.Initialize(item);
+
+            // 커스텀 손 부착(낚싯대와 동일 방식). 작은 구체라 중심(0,0,0)을 손바닥에 쥔다.
+            // 놓으면 떨어뜨림(Drop) — 냄비 투입/낙사 정리에 맡긴다(선반이 슬롯을 다시 채움).
+            pickup.gameObject.AddComponent<HeldItemGrabber>().Configure(
+                gripLocalPoint: Vector3.zero,
+                heldEuler: Vector3.zero,
+                palmOffset: new Vector3(0f, -0.02f, 0.03f),
+                hand: HeldItemGrabber.HandSide.Auto,
+                releaseMode: HeldItemGrabber.ReleaseMode.Drop);
+
             m_live[item] = new Entry { Pickup = pickup, Slot = slot };
         }
     }
