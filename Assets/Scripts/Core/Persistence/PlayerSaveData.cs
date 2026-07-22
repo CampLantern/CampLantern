@@ -15,6 +15,12 @@ namespace CampLantern.Core.Persistence
         public List<ItemStackSave> Inventory = new List<ItemStackSave>();
         public List<ItemStackSave> OwnedEstateDefs = new List<ItemStackSave>();
         public List<PlacedObjectSave> PlacedObjects = new List<PlacedObjectSave>();
+
+        // 낚싯대 소모품 — 미끼 구매 코인이 재진입 리필로 무력화되지 않게 영속화.
+        // -1 = 기록 없음(구 저장 파일/신규) → 낚싯대 기본값 사용. JsonUtility는 JSON에 없는
+        // 필드를 초기값으로 두므로 구 파일 마이그레이션이 자동으로 안전하다.
+        public int BaitCount = -1;
+        public int RodDurability = -1;
     }
 
     [Serializable]

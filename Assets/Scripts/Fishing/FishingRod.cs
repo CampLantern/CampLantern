@@ -24,7 +24,7 @@ namespace CampLantern.Fishing
         [SerializeField] private RodData m_rod = CreateBasicRod(); // TODO(DATA): 장비 시스템 미정 — 임시 하드코딩
 
         [Tooltip("보유 미끼(갯지렁이 1종 고정, §4)")]
-        [SerializeField] private int m_baitCount = 10;             // TODO(DATA): UserData 미정 — 임시 하드코딩
+        [SerializeField] private int m_baitCount = 10;             // 신규 유저 기본값 — 저장값은 RestoreConsumables로 복원
 
         [Tooltip("낚시 튜닝 값 — 캐스팅한 물고기에 공유 주입")]
         [SerializeField] private FishingTuning m_tuning = new FishingTuning();
@@ -59,6 +59,16 @@ namespace CampLantern.Fishing
         {
             rodId = "rod_basic", power = 1f, durability = 10, maxDurability = 10, length = 15f, tension = 10f, // TODO(DATA)
         };
+
+        /// <summary>
+        /// 저장된 소모품 상태 복원 — 하네스가 PlayerState.Load 직후 호출한다.
+        /// 음수는 "기록 없음"(신규/구 저장 파일)으로 무시하고 기본값을 유지한다.
+        /// </summary>
+        public void RestoreConsumables(int baitCount, int durability)
+        {
+            if (baitCount >= 0) m_baitCount = baitCount;
+            if (durability >= 0) m_rod.durability = Mathf.Min(durability, m_rod.maxDurability);
+        }
 
         // ── 코어 진입점 (입력 어댑터/하네스가 호출) ──────────────────
 

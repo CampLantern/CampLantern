@@ -123,6 +123,7 @@ namespace CampLantern.Fishing
 
             var fish = go.AddComponent<Fish>();
             fish.SetTuning(m_tuning);
+            fish.SetSwimArea(transform.position, m_radius); // 접근 착수점이 스폿 원 밖(뭍/부두)으로 못 나가게
             fish.Initialize(instance);
 
             var sf = new SpotFish { fish = fish, anchor = anchor, phase = Random.Range(0f, 6.28f) };

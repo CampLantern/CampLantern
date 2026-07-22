@@ -120,8 +120,10 @@ namespace CampLantern.EditorTools
 
             var tent = new List<Part>
             {
-                P(PrimitiveType.Cube, new Vector3(-0.3f, 0.55f, 0f), new Vector3(0.06f, 1.1f, 1.3f), canvas, new Vector3(0f, 0f, 28f)),
-                P(PrimitiveType.Cube, new Vector3(0.3f, 0.55f, 0f),  new Vector3(0.06f, 1.1f, 1.3f), canvas, new Vector3(0f, 0f, -28f)),
+                // z+회전은 윗부분을 -x로 눕힘 → 왼쪽(-x) 패널 -28°, 오른쪽 +28°이어야 꼭대기에서 만나는 Λ자.
+                // 부호가 반대면 V자로 무너져 보인다 (MapBuildUtil.BuildTent와 동일 규칙 — 2026-07-22 시각 검증에서 발견)
+                P(PrimitiveType.Cube, new Vector3(-0.3f, 0.55f, 0f), new Vector3(0.06f, 1.1f, 1.3f), canvas, new Vector3(0f, 0f, -28f)),
+                P(PrimitiveType.Cube, new Vector3(0.3f, 0.55f, 0f),  new Vector3(0.06f, 1.1f, 1.3f), canvas, new Vector3(0f, 0f, 28f)),
                 P(PrimitiveType.Cube, new Vector3(0f, 0.35f, 0.62f), new Vector3(0.35f, 0.5f, 0.04f), canvasDark), // 앞막
             };
 

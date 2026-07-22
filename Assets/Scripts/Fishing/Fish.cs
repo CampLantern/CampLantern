@@ -87,6 +87,20 @@ namespace CampLantern.Fishing
             if (tuning != null) m_tuning = tuning;
         }
 
+        private Vector3 m_swimCenter;      // 유영 한계 중심 — 스포너(FishingSpot)가 주입
+        private float m_swimRadius = -1f;  // 음수 = 미설정(제한 없음)
+
+        /// <summary>
+        /// 유영 한계 주입 — 접근(미끼 착수점)이 이 원 밖으로 못 나가게 한다.
+        /// 수면/지형 데이터가 없어 스폿 스폰 반경(물속에 있음이 구성상 보장됨)을 한계로 쓴다 —
+        /// 부두 위에서 캐스팅해도 물고기가 뭍/부두 위까지 유영해 오는 시각 붕괴 방지.
+        /// </summary>
+        public void SetSwimArea(Vector3 center, float radius)
+        {
+            m_swimCenter = center;
+            m_swimRadius = Mathf.Max(0.5f, radius);
+        }
+
         private void Update()
         {
             switch (State)
@@ -146,6 +160,19 @@ namespace CampLantern.Fishing
             Vector3 toRod = rod.transform.position - transform.position;
             toRod.y = 0f;
             m_baitPoint = transform.position + (toRod.sqrMagnitude > 0.001f ? toRod.normalized : Vector3.forward);
+
+            // 유영 한계 클램프 — 착수점이 스폿 원 밖(뭍/부두)으로 나가지 않게. y(수면 높이)는 유지.
+            if (m_swimRadius > 0f)
+            {
+                Vector3 flat = m_baitPoint - m_swimCenter;
+                float y = m_baitPoint.y;
+                flat.y = 0f;
+                if (flat.sqrMagnitude > m_swimRadius * m_swimRadius)
+                {
+                    flat = flat.normalized * m_swimRadius;
+                    m_baitPoint = new Vector3(m_swimCenter.x + flat.x, y, m_swimCenter.z + flat.z);
+                }
+            }
 
             SetState(FishState.Approach);
         }

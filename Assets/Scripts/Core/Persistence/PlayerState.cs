@@ -13,12 +13,25 @@ namespace CampLantern.Core.Persistence
     /// </summary>
     public class PlayerState
     {
+        // 시작 코인 — 최초 실행(저장 파일 없음)에만 지급. 하네스별 지급은 첫 진입 씬이
+        // 영지가 아니면(예: 로비→낚시터 동선) 첫 포획 Save가 파일을 먼저 만들어 영영 미지급되는
+        // 결함이 있어, 어느 씬이 최초든 동일하게 적용되도록 여기서 중앙 처리한다.
+        private const int k_startingCoins = 100;
+
         public Wallet Wallet { get; }
         public Inventory Inventory { get; }
         public EstateShop Shop { get; }
 
         /// <summary>Load() 직후 채워지는 배치 복원 목록 — 영지 씬이 EstateManager.Place로 적용한다.</summary>
         public IReadOnlyList<PlacedObjectSave> PendingPlacements { get; private set; } = new List<PlacedObjectSave>();
+
+        /// <summary>
+        /// 낚싯대 소모품 (미끼·내구도). Load가 디스크 값을 채우고, 낚싯대가 있는 씬의 하네스가
+        /// 낚싯대에 Push한 뒤 저장 전에 최신 값을 되써 넣는다. -1 = 기록 없음 —
+        /// 배치 목록과 같은 원칙으로, 낚싯대를 모르는 씬은 -1을 유지해 디스크 값을 건드리지 않는다.
+        /// </summary>
+        public int BaitCount { get; set; } = -1;
+        public int RodDurability { get; set; } = -1;
 
         public PlayerState()
         {
@@ -30,8 +43,11 @@ namespace CampLantern.Core.Persistence
         /// <summary>디스크에서 로드해 Wallet/Inventory/Shop에 반영한다. 씬 시작 시 1회 호출.</summary>
         public void Load(ContentRegistry registry)
         {
+            bool isNewSave = !SaveService.Exists();
+
             PlayerSaveData data = SaveService.Load();
 
+            if (isNewSave) Wallet.Add(k_startingCoins);
             if (data.Coins > 0) Wallet.Add(data.Coins);
 
             foreach (ItemStackSave stack in data.Inventory)
@@ -51,22 +67,40 @@ namespace CampLantern.Core.Persistence
             }
 
             PendingPlacements = data.PlacedObjects;
+            BaitCount         = data.BaitCount;
+            RodDurability     = data.RodDurability;
         }
 
         /// <summary>
         /// 현재 상태를 디스크에 저장한다. estateManager가 있으면(영지 씬) 배치 목록도 함께 갱신하고,
         /// 없으면(낚시터/사냥터 씬) 디스크에 있던 배치 목록을 그대로 보존한다 — 이 씬은 배치를 모르므로
         /// 건드리면 안 됨.
+        /// pendingPotIngredients: 냄비에 투입됐지만 아직 조리되지 않은 재료. 메모리 인벤토리에서는
+        /// 투입 시점에 이미 빠져 있지만, 냄비는 씬 소속이라 조리 전에 씬을 떠나면 내용물이 사라지므로
+        /// 디스크에는 인벤토리 보유분으로 합산 기록한다 — 조리 후의 Save가 정확한 상태로 다시 덮어쓴다.
         /// </summary>
-        public void Save(EstateManager estateManager = null)
+        public void Save(EstateManager estateManager = null, IReadOnlyList<ItemDef> pendingPotIngredients = null)
         {
             PlayerSaveData data = SaveService.Load(); // baseline — 이 씬이 모르는 필드(예: 배치 목록) 보존
 
             data.Coins = Wallet.Coins;
 
+            // -1(기록 없음)은 쓰지 않는다 — 구 저장 파일의 값을 실수로 지우지 않기 위한 가드
+            if (BaitCount >= 0) data.BaitCount = BaitCount;
+            if (RodDurability >= 0) data.RodDurability = RodDurability;
+
             data.Inventory.Clear();
             foreach (KeyValuePair<ItemDef, int> entry in Inventory.Items)
                 data.Inventory.Add(new ItemStackSave { Id = entry.Key.Id, Count = entry.Value });
+
+            if (pendingPotIngredients != null)
+            {
+                foreach (ItemDef ingredient in pendingPotIngredients)
+                {
+                    if (ingredient == null) continue;
+                    AddToStackList(data.Inventory, ingredient.Id, 1);
+                }
+            }
 
             data.OwnedEstateDefs.Clear();
             foreach (KeyValuePair<EstateObjectDef, int> entry in Shop.OwnedDefs)
@@ -92,6 +126,17 @@ namespace CampLantern.Core.Persistence
             }
 
             SaveService.Save(data);
+        }
+
+        private static void AddToStackList(List<ItemStackSave> stacks, string id, int count)
+        {
+            for (int i = 0; i < stacks.Count; i++)
+            {
+                if (stacks[i].Id != id) continue;
+                stacks[i].Count += count;
+                return;
+            }
+            stacks.Add(new ItemStackSave { Id = id, Count = count });
         }
     }
 }

@@ -17,11 +17,16 @@ namespace CampLantern.Networking.Voice
         // Editor 메뉴 Tools > Make Assets > Voice Player Prefab 으로 생성 후 씬에서 수동 할당.
         [SerializeField] private NetworkObject m_voicePlayerPrefab;
 
+        // 마이크 토글은 씬(공간) 이동 시 이 컴포넌트가 씬과 함께 파괴돼도 유지돼야 한다 —
+        // 유실되면 마이크를 껐던 유저가 이동 후 소리 없이 다시 송신하게 된다 (GDD 6-4 안전장치 위반).
+        // 프로세스 수명 동안 마지막 토글 상태를 보존한다.
+        private static bool s_micPreference = true;
+
         private SessionLauncher m_launcher;
         private PlayerMute m_playerMute;   // 같은 GO에 있으면 세션 시작 시 바인딩 (없어도 음성 자체는 동작)
         private FusionVoiceClient m_voiceClient;
         private Recorder m_recorder;
-        private bool m_micEnabled = true;  // Recorder 생성 전 SetMicEnabled 호출 대비 희망 상태 보관
+        private bool m_micEnabled = s_micPreference; // Recorder 생성 전 SetMicEnabled 호출 대비 희망 상태 보관
 
         /// <summary>로컬 마이크 송신 여부.</summary>
         public bool MicEnabled => m_recorder != null ? m_recorder.TransmitEnabled : m_micEnabled;
@@ -29,7 +34,8 @@ namespace CampLantern.Networking.Voice
         /// <summary>자기 마이크 on/off. 세션 시작 전에 호출하면 시작 시점에 반영된다.</summary>
         public void SetMicEnabled(bool enabled)
         {
-            m_micEnabled = enabled;
+            m_micEnabled    = enabled;
+            s_micPreference = enabled; // 다음 씬의 VoiceController가 이 상태로 시작
             if (m_recorder != null) m_recorder.TransmitEnabled = enabled;
         }
 

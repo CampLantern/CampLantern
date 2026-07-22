@@ -262,6 +262,10 @@ namespace CampLantern.Bootstrap
         private void HookHuntTarget(HuntTarget target)
         {
             m_huntTargets.Add(target);
+
+            // 처치 시각 피드백(쓰러짐) — 프리팹 수정 없이 런타임 부착 (HUD류와 동일 패턴)
+            if (target.GetComponent<HuntTargetDeathVisual>() == null)
+                target.gameObject.AddComponent<HuntTargetDeathVisual>();
             var ledger = target.GetComponent<HuntLedger>();
             if (ledger != null && m_hookedLedgers.Add(ledger))
             {

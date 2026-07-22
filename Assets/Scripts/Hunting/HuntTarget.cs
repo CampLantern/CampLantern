@@ -96,7 +96,14 @@ namespace CampLantern.Hunting
             {
                 if (change != nameof(CurrentHealth)) continue;
 
-                if (CurrentHealth <= 0 && !m_defeatedFired)
+                if (CurrentHealth > 0)
+                {
+                    // 재사냥으로 체력이 회복됨 — 비권한 클라이언트도 여기서 가드를 리셋해야
+                    // 2회차 처치에서 Defeated(→보상)가 발화한다. TryStartHunt는 권한자 전용이라
+                    // 이 경로가 없으면 비권한 쪽만 보상이 누락된다.
+                    m_defeatedFired = false;
+                }
+                else if (!m_defeatedFired)
                 {
                     m_defeatedFired = true;
                     Defeated?.Invoke(this);

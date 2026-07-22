@@ -38,8 +38,6 @@ namespace CampLantern.Bootstrap
         [SerializeField] private NetworkObject m_huntTargetPrefab;
 
         [Header("테스트 편의값")]
-        [Tooltip("시작 코인 — 상점 테스트 편의용 (경제 검증 시 0으로)")]
-        [SerializeField] private int m_startingCoins = 100;
         [Tooltip("클릭당 사냥 타격량")]
         [SerializeField] private int m_hitDamage = 10;
         [Tooltip("영지 배치 시작 위치 — 이후 2m 간격 격자로 배치")]
@@ -84,12 +82,9 @@ namespace CampLantern.Bootstrap
             if (m_registry == null)
                 Debug.LogError("[P0Harness] ContentRegistry 없음 — Tools > Make Assets > Content Registry 실행 필요");
 
-            bool isNewSave = !SaveService.Exists(); // 최초 실행에만 시작 코인 지급 — 이후엔 저장값이 우선
-
             m_state = new PlayerState();
-            if (m_registry != null) m_state.Load(m_registry);
-
-            if (isNewSave && m_startingCoins > 0) m_state.Wallet.Add(m_startingCoins);
+            if (m_registry != null) m_state.Load(m_registry); // 시작 코인은 PlayerState.Load가 최초 실행에 중앙 지급
+            if (m_rod != null) m_rod.RestoreConsumables(m_state.BaitCount, m_state.RodDurability); // 미끼·내구도 복원 (-1 = 기록 없음)
 
             if (m_launcher != null)
             {
@@ -155,12 +150,28 @@ namespace CampLantern.Bootstrap
             m_dummyRunner = null;
             if (m_dummyPlaceholder != null) Destroy(m_dummyPlaceholder);
 
-            m_state?.Save(m_estateManager);
+            SaveState();
         }
 
         private void OnApplicationQuit()
         {
-            m_state.Save(m_estateManager);
+            SaveState();
+        }
+
+        // 저장은 항상 이 헬퍼를 거친다 — 냄비 투입분(미조리)을 인벤토리 보유분으로 합산 기록하고
+        // (조리 전 다른 트랜잭션의 Save가 투입 재료를 지워버리는 유실 방지),
+        // 낚싯대 소모품(미끼·내구도)을 저장 직전 동기화한다 (재진입 리필 방지)
+        private void SaveState()
+        {
+            if (m_state == null) return;
+
+            if (m_rod != null)
+            {
+                m_state.BaitCount     = m_rod.BaitCount;
+                m_state.RodDurability = m_rod.Rod.durability;
+            }
+
+            m_state.Save(m_estateManager, m_pot != null ? m_pot.Ingredients : null);
         }
 
         private void Update()
@@ -223,13 +234,13 @@ namespace CampLantern.Bootstrap
             }
             m_state.Wallet.Add(reward.coin);
             m_lastLog = $"낚음: {displayName} ({fish.Length:F1}cm)";
-            m_state.Save(m_estateManager); // OS 강제종료 대비 — 획득 즉시 저장 (FishingGroundHarness와 동일 정책)
+            SaveState(); // OS 강제종료 대비 — 획득 즉시 저장 (FishingGroundHarness와 동일 정책)
         }
 
         private void OnCooked(ItemDef result)
         {
             m_lastLog = $"조리 결과: {result.DisplayName}";
-            m_state.Save(m_estateManager); // 재료 소모·결과물 반영 즉시 저장
+            SaveState(); // 재료 소모·결과물 반영 즉시 저장
         }
 
         private void OnSessionStarted(NetworkRunner runner)
@@ -242,6 +253,11 @@ namespace CampLantern.Bootstrap
         private void HookHuntTarget(HuntTarget target)
         {
             m_huntTarget = target;
+
+            // 처치 시각 피드백(쓰러짐) — 프리팹 수정 없이 런타임 부착 (HuntZoneHarness와 동일)
+            if (target.GetComponent<HuntTargetDeathVisual>() == null)
+                target.gameObject.AddComponent<HuntTargetDeathVisual>();
+
             m_huntLedger = target.GetComponent<HuntLedger>();
             if (m_huntLedger != null)
             {
@@ -263,7 +279,7 @@ namespace CampLantern.Bootstrap
             foreach (ItemDef material in def.RewardMaterials)
                 m_state.Inventory.Add(material);
             m_lastLog = $"사냥 보상 지급: {def.DisplayName}";
-            m_state.Save(m_estateManager); // OS 강제종료 대비 — 보상 즉시 저장
+            SaveState(); // OS 강제종료 대비 — 보상 즉시 저장
         }
 
         private async Task JoinSessionAsync()
@@ -395,7 +411,7 @@ namespace CampLantern.Bootstrap
             m_scroll = GUILayout.BeginScrollView(m_scroll, GUILayout.Width(340), GUILayout.Height(Screen.height - 20));
 
             GUILayout.Label($"[Camp Lantern P0]  코인: {m_state.Wallet.Coins}  |  {m_lastLog}");
-            if (GUILayout.Button("저장")) { m_state.Save(m_estateManager); m_lastLog = "저장 완료"; }
+            if (GUILayout.Button("저장")) { SaveState(); m_lastLog = "저장 완료"; }
             DrawFishing();
             DrawInventory();
             DrawCooking();
@@ -412,7 +428,7 @@ namespace CampLantern.Bootstrap
             if (!m_state.Wallet.TrySpend(price)) { m_lastLog = $"미끼 구매 실패 — 코인 부족 ({price}c 필요)"; return; }
             m_rod.AddBait(quantity);
             m_lastLog = $"미끼 {quantity}개 구매 (-{price}c)";
-            m_state.Save(m_estateManager);
+            SaveState();
         }
 
         private void RepairRod()
@@ -421,7 +437,7 @@ namespace CampLantern.Bootstrap
             if (!m_state.Wallet.TrySpend(price)) { m_lastLog = $"수리 실패 — 코인 부족 ({price}c 필요)"; return; }
             m_rod.Repair();
             m_lastLog = $"낚싯대 수리 완료 (-{price}c)";
-            m_state.Save(m_estateManager);
+            SaveState();
         }
 
         private void DrawFishing()
@@ -469,7 +485,7 @@ namespace CampLantern.Bootstrap
                     m_state.Inventory.TryRemove(entry.Key))
                 {
                     m_state.Wallet.Add(entry.Key.SellPrice);
-                    m_state.Save(m_estateManager); // 판매 즉시 저장
+                    SaveState(); // 판매 즉시 저장
                 }
                 GUILayout.EndHorizontal();
             }
@@ -508,7 +524,7 @@ namespace CampLantern.Bootstrap
                     {
                         bool purchased = m_state.Shop.TryPurchase(def);
                         m_lastLog = purchased ? $"구매: {def.DisplayName}" : "구매 실패 (재화 부족)";
-                        if (purchased) m_state.Save(m_estateManager); // 구매 즉시 저장
+                        if (purchased) SaveState(); // 구매 즉시 저장
                     }
                     int owned = m_state.Shop.CountOwned(def);
                     if (owned > 0 && GUILayout.Button($"배치({owned})", GUILayout.Width(70)))
@@ -520,7 +536,7 @@ namespace CampLantern.Bootstrap
             if (m_estateManager.PlacedObjects.Count > 0 && GUILayout.Button("마지막 배치물 회수"))
             {
                 m_estateManager.Remove(m_estateManager.PlacedObjects[m_estateManager.PlacedObjects.Count - 1]);
-                m_state.Save(m_estateManager); // 회수(보유 반환) 즉시 저장
+                SaveState(); // 회수(보유 반환) 즉시 저장
             }
         }
 
@@ -544,7 +560,7 @@ namespace CampLantern.Bootstrap
             else
             {
                 m_lastLog = $"배치: {def.DisplayName}";
-                m_state.Save(m_estateManager); // 배치 즉시 저장
+                SaveState(); // 배치 즉시 저장
             }
         }
 

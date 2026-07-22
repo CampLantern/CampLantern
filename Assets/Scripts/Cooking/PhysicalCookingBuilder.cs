@@ -114,10 +114,13 @@ namespace CampLantern.Cooking
             ladle.SetAnchor(anchor.position, anchor.rotation);
 
             // 커스텀 손 부착(낚싯대와 동일 방식). 국자 손잡이 실린더는 rod-local y=0~0.36, 스쿱=0.38 →
-            // 하단 손잡이 (0, 0.13, 0)를 손에 쥔다. 놓으면 거치대(스폰 앵커)로 복귀. TODO(TUNING): 실기 확인
+            // 하단 손잡이 (0, 0.13, 0)를 손에 쥔다. 놓으면 거치대(스폰 앵커)로 복귀.
+            // heldEuler X=160°: 스쿱(+Y)이 아래·약간 앞을 향한다 — 국자를 자연스럽게 쥐면 스쿱이
+            // 냄비 속으로 내려가는 자세 (10°였을 땐 스쿱이 하늘을 봄 — 2026-07-22 시각 검증에서 발견).
+            // TODO(TUNING): 실기 그립 체감 확인
             ladle.gameObject.AddComponent<HeldItemGrabber>().Configure(
                 gripLocalPoint: new Vector3(0f, 0.13f, 0f),
-                heldEuler: new Vector3(10f, 0f, 0f),
+                heldEuler: new Vector3(160f, 0f, 0f),
                 palmOffset: new Vector3(0f, -0.02f, 0.03f),
                 hand: HeldItemGrabber.HandSide.Auto,
                 releaseMode: HeldItemGrabber.ReleaseMode.ReturnToDock);

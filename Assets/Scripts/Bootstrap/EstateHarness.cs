@@ -26,7 +26,6 @@ namespace CampLantern.Bootstrap
         [SerializeField] private SessionLauncher m_launcher;
         [SerializeField] private EstateObjectDef[] m_estateCatalog;
         [SerializeField] private string m_lobbySceneName = "Lobby";
-        [SerializeField] private int m_startingCoins = 100;
         [SerializeField] private Vector3 m_placeOrigin = new Vector3(3f, 0f, 3f);
 
         private PlayerState m_state;
@@ -49,12 +48,8 @@ namespace CampLantern.Bootstrap
             if (m_registry == null)
                 Debug.LogError("[EstateHarness] ContentRegistry 없음 — Tools > Make Assets > Content Registry 실행 필요");
 
-            bool isNewSave = !SaveService.Exists(); // 최초 실행에만 시작 코인 지급 — 이후엔 저장값이 우선
-
             m_state = new PlayerState();
-            if (m_registry != null) m_state.Load(m_registry);
-
-            if (isNewSave && m_startingCoins > 0) m_state.Wallet.Add(m_startingCoins);
+            if (m_registry != null) m_state.Load(m_registry); // 시작 코인은 PlayerState.Load가 최초 실행에 중앙 지급
         }
 
         private void Start()
@@ -130,6 +125,13 @@ namespace CampLantern.Bootstrap
             if (m_toast != null) Destroy(m_toast.gameObject);
         }
 
+        // 저장은 항상 이 헬퍼를 거친다 — 냄비 투입분(미조리)을 인벤토리 보유분으로 합산 기록해야
+        // 조리 전 다른 트랜잭션의 Save가 투입 재료를 디스크에서 지워버리는 유실이 없다
+        private void SaveState()
+        {
+            m_state.Save(m_estateManager, m_pot != null ? m_pot.Ingredients : null);
+        }
+
         // IMGUI 로그와 VR 토스트 동시 알림 — 결과 피드백은 항상 이 헬퍼를 거친다
         private void Notify(string message)
         {
@@ -139,19 +141,19 @@ namespace CampLantern.Bootstrap
 
         private void OnApplicationQuit()
         {
-            m_state.Save(m_estateManager);
+            SaveState();
         }
 
         private void ReturnToLobby()
         {
-            m_state.Save(m_estateManager);
+            SaveState();
             SceneManager.LoadScene(m_lobbySceneName);
         }
 
         private void OnCooked(ItemDef result)
         {
             Notify($"조리 결과: {result.DisplayName}");
-            m_state.Save(m_estateManager); // OS 강제종료 대비 — 재료 소모·결과물 반영 즉시 저장
+            SaveState(); // OS 강제종료 대비 — 재료 소모·결과물 반영 즉시 저장
         }
 
         private void OnIngredientAdded(ItemDef item)
@@ -331,7 +333,7 @@ namespace CampLantern.Bootstrap
         {
             bool purchased = m_state.Shop.TryPurchase(def);
             Notify(purchased ? $"구매: {def.DisplayName}" : "구매 실패 (재화 부족)");
-            if (purchased) m_state.Save(m_estateManager); // 구매 즉시 저장
+            if (purchased) SaveState(); // 구매 즉시 저장
         }
 
         private void SellItem(ItemDef item)
@@ -339,7 +341,7 @@ namespace CampLantern.Bootstrap
             if (!m_state.Inventory.TryRemove(item)) return;
             m_state.Wallet.Add(item.SellPrice);
             Notify($"판매: {item.DisplayName} +{item.SellPrice}c");
-            m_state.Save(m_estateManager); // 판매 즉시 저장
+            SaveState(); // 판매 즉시 저장
         }
 
         private void RemoveLastPlaced()
@@ -347,7 +349,7 @@ namespace CampLantern.Bootstrap
             if (m_estateManager.PlacedObjects.Count == 0) return;
             m_estateManager.Remove(m_estateManager.PlacedObjects[m_estateManager.PlacedObjects.Count - 1]);
             Notify("배치물 회수 — 보유 목록으로 반환");
-            m_state.Save(m_estateManager); // 회수(보유 반환) 즉시 저장
+            SaveState(); // 회수(보유 반환) 즉시 저장
         }
 
         private void TryPlace(EstateObjectDef def)
@@ -369,7 +371,7 @@ namespace CampLantern.Bootstrap
             else
             {
                 Notify($"배치: {def.DisplayName}");
-                m_state.Save(m_estateManager); // 배치 즉시 저장
+                SaveState(); // 배치 즉시 저장
             }
         }
     }

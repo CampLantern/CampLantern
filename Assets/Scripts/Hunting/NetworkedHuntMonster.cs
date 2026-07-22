@@ -204,6 +204,11 @@ namespace CampLantern.Hunting
                 // 처치 감지 — 각 클라 1회 (HuntTarget.Render 패턴)
                 if (change == nameof(NetCurrentHp))
                 {
+                    // 재사냥으로 HP 회복 — 비권한 클라이언트도 가드를 리셋해야 2회차 처치에서
+                    // Defeated/RewardGranted가 발화한다 (TryStartHunt는 권한자 전용).
+                    if (NetCurrentHp > 0)
+                        m_defeatedFired = false;
+
                     if (NetCurrentHp <= 0 && !m_defeatedFired)
                     {
                         m_defeatedFired = true;

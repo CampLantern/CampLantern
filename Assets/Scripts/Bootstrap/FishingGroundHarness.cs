@@ -50,6 +50,7 @@ namespace CampLantern.Bootstrap
 
             m_state = new PlayerState();
             if (m_registry != null) m_state.Load(m_registry);
+            m_rod.RestoreConsumables(m_state.BaitCount, m_state.RodDurability); // 미끼·내구도 복원 (-1 = 기록 없음)
 
             // 근접 음성 — Network 오브젝트(SessionLauncher와 같은 GO)에 배선됨. HuntZone과 동일 패턴.
             m_voice = m_launcher.GetComponent<VoiceController>();
@@ -119,6 +120,10 @@ namespace CampLantern.Bootstrap
             if (m_resultPanel != null) m_resultPanel.Confirmed -= OnResultConfirmed;
             if (m_wristHud != null) Destroy(m_wristHud.gameObject); // 리그에 붙어 있어 씬 언로드로 안 죽는다
             if (m_toast != null) Destroy(m_toast.gameObject);
+
+            // 포탈 이동은 하네스 Save 경로를 안 타는 유일한 이탈 — 마지막 저장 이후의
+            // 미끼·내구도 소모를 여기서 마감 기록한다 (중복 저장은 무해)
+            if (m_rod != null && m_state != null) SaveState();
         }
 
         // IMGUI 로그와 VR 토스트 동시 알림 — 결과 피드백은 항상 이 헬퍼를 거친다
@@ -128,11 +133,21 @@ namespace CampLantern.Bootstrap
             if (m_toast != null) m_toast.Show(message);
         }
 
+        // 저장은 항상 이 헬퍼를 거친다 — 낚싯대 소모품(미끼·내구도)을 저장 직전 동기화해야
+        // 씬 재진입 리필로 미끼 구매 코인 싱크가 무력화되지 않는다.
+        // 낚시터는 EstateManager가 없으므로 배치 목록은 디스크 값 그대로 보존됨.
+        private void SaveState()
+        {
+            m_state.BaitCount     = m_rod.BaitCount;
+            m_state.RodDurability = m_rod.Rod.durability;
+            m_state.Save();
+        }
+
         private void OnResultConfirmed() => m_resultPanel.Hide();
 
         private void OnApplicationQuit()
         {
-            m_state.Save(); // 낚시터는 EstateManager가 없으므로 배치 목록은 디스크 값 그대로 보존됨
+            SaveState();
         }
 
         // 획득 적용 — 인벤토리(fishId→기존 FishDef)/코인/XP. 낚시 코어는 이벤트만 발화, 적용은 하네스 책임.
@@ -150,13 +165,13 @@ namespace CampLantern.Bootstrap
 
             m_lastLog = $"낚음: {displayName} ({fish.Length:F1}cm)";
             if (m_resultPanel != null) m_resultPanel.Show(fish, reward, displayName);
-            m_state.Save();
+            SaveState();
             RefreshShopPanel(); // 포획으로 내구도가 깎였을 수 있음 — 수리 가격 갱신
         }
 
         private void ReturnToLobby()
         {
-            m_state.Save();
+            SaveState();
             SceneManager.LoadScene(m_lobbySceneName);
         }
 
@@ -193,7 +208,7 @@ namespace CampLantern.Bootstrap
             }
             m_rod.AddBait(quantity);
             Notify($"미끼 {quantity}개 구매 (-{price}c)");
-            m_state.Save();
+            SaveState();
         }
 
         // 낚싯대 수리 — 코인 싱크 배선 (§5-2 수리대, 가격은 §9 FishingFormulas 경유)
@@ -207,7 +222,7 @@ namespace CampLantern.Bootstrap
             }
             m_rod.Repair();
             Notify($"낚싯대 수리 완료 (-{price}c)");
-            m_state.Save();
+            SaveState();
         }
 
         // 정교화 낚시 디버그 조작 (개발용 IMGUI — VR 입력은 FishingRodInput 담당, Quest 빌드 전 제거 대상)

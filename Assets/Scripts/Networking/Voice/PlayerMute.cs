@@ -19,7 +19,11 @@ namespace CampLantern.Networking.Voice
         private NetworkRunner m_runner;
         private VoiceConnection m_voice;
 
-        /// <summary>해당 플레이어가 음소거 상태인지. 음소거 목록은 세션이 끝나도 유지된다.</summary>
+        /// <summary>
+        /// 해당 플레이어가 음소거 상태인지. 음소거 목록은 이 컴포넌트 수명(=씬) 안에서만 유지된다 —
+        /// PlayerRef가 세션(Photon Room) 스코프 ID라 공간 이동 후에는 같은 사람이라도 다른 값이 되므로
+        /// 씬 간 보존은 불가능하며, 영속 음소거는 백엔드 userId 확정 후(소셜 MVP) 키를 바꿔 구현한다.
+        /// </summary>
         public bool IsMuted(PlayerRef player) => m_muted.Contains(player);
 
         /// <summary>원터치 음소거 — 상대 스피커 로컬 차단. 스피커가 아직 없으면(늦은 접속) 링크 시점에 적용된다.</summary>
